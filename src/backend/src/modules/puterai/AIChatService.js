@@ -437,6 +437,15 @@ class AIChatService extends BaseService {
                 const model_details = this.get_model_details(model_used, {
                     service_used,
                 });
+
+                if ( ! model_details ) {
+                    throw APIError.create('field_invalid', null, {
+                        key: 'model',
+                        expected: 'one of: ' +
+                            Object.keys(this.detail_model_map).join(', '),
+                        got: model_used,
+                    });
+                }
                 
                 const model_input_cost = model_details.cost.input;
                 const model_output_cost = model_details.cost.output;
