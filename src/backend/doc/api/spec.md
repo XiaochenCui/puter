@@ -10,7 +10,7 @@ This rule applies to `model` field in AI-related API endpoints. Such as:
 
 ### Rule
 
-- 3 formats all AI models must follow:
+- 3 formats are allowed:
   - `<model-name>` (e.g., `gpt-4o`)
   - `<vendor>/<model-name>` (e.g., `openai/gpt-4o`)
   - `<supplier>:<vendor>/<model-name>` (e.g., `azure:openai/gpt-4o`)
