@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "checkJs": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "~src/*": ["src/*"],
+      "~tools/*": ["tools/*"],
+      "~experiments/*": ["experiments/js-parse-and-output/*"],
+      "*": ["node_modules/*"]
+    }
+  },
+  "include": [
+    "src",
+    "tools",
+    "experiments/js-parse-and-output"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.js"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "puter server",
+            "program": "${workspaceFolder}/tools/run-selfhosted.js",
+            "runtimeArgs": [
+                "--enable-source-maps"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "cwd": "${workspaceFolder}",
+            // "envFile": "${workspaceFolder}/.env",
+            // "console": "integratedTerminal"
+            // "env": {
+            //     "PUTER_CONFIG_PROFILE": "xiaochen",
+            // }
+        }
+    ]
+}
