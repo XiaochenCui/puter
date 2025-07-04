@@ -58,30 +58,30 @@ class AIChatService extends BaseService {
     * Called during service instantiation.
     * @private
     */
-    _construct () {
+    _construct() {
         this.providers = [];
 
         this.simple_model_list = [];
         this.detail_model_list = [];
         this.detail_model_map = {};
     }
-    
-    get_model_details (model_name, context) {
+
+    get_model_details(model_name, context) {
         let model_details = this.detail_model_map[model_name];
-        if ( Array.isArray(model_details) && context ) {
-            for ( const model of model_details ) {
-                if ( model.provider === context.service_used ) {
+        if (Array.isArray(model_details) && context) {
+            for (const model of model_details) {
+                if (model.provider === context.service_used) {
                     model_details = model;
                     break;
                 }
             }
         }
-        if ( Array.isArray(model_details) ) {
+        if (Array.isArray(model_details)) {
             model_details = model_details[0];
         }
         return model_details;
     }
-    
+
     /**
     * Initializes the service by setting up empty arrays and maps for providers and models.
     * This method is called during service construction to establish the initial state.
@@ -89,7 +89,7 @@ class AIChatService extends BaseService {
     * as well as an empty object for the detailed model map.
     * @private
     */
-    _init () {
+    _init() {
         this.kvkey = this.modules.uuidv4();
 
         this.db = this.services.get('database').get(DB_WRITE, 'ai-usage');
@@ -97,8 +97,8 @@ class AIChatService extends BaseService {
         const svc_event = this.services.get('event');
         svc_event.on('ai.prompt.report-usage', async (_, details) => {
             // Only skip usage reporting for fake-chat if it's not using the costly model
-            if ( details.service_used === 'fake-chat' && details.model_used !== 'costly' ) return;
-            if ( details.service_used === 'usage-limited-chat' ) return;
+            if (details.service_used === 'fake-chat' && details.model_used !== 'costly') return;
+            if (details.service_used === 'usage-limited-chat') return;
 
             const values = {
                 user_id: details.actor?.type?.user?.id,
@@ -106,11 +106,11 @@ class AIChatService extends BaseService {
                 service_name: details.service_used,
                 model_name: details.model_used,
             };
-            
+
             let model_details;
 
             // New format
-            if ( Array.isArray(details.usage) ) {
+            if (Array.isArray(details.usage)) {
                 values.cost = details.usage.reduce((acc, u) => {
                     return acc + u.cost;
                 }, 0);
@@ -121,12 +121,12 @@ class AIChatService extends BaseService {
                 model_details = this.get_model_details(values.model_name, {
                     service_used: values.service_name,
                 });
-                if ( model_details ) {
+                if (model_details) {
                     values.cost = 0 + // for formatting
 
-                        model_details.cost.input  * details.usage.input_tokens
+                        model_details.cost.input * details.usage.input_tokens
                         //            cents/MTok                        tokens
-                                                +
+                        +
 
                         model_details.cost.output * details.usage.output_tokens
                         //            cents/MTok                        tokens
@@ -151,7 +151,7 @@ class AIChatService extends BaseService {
 
             const svc_cost = this.services.get('cost');
             svc_cost.record_cost({ cost: values.cost });
-            
+
             // USD cost from microcents
             const cost_usc = values.cost / 1000000;
             const cost_usd = cost_usc / 100;
@@ -163,7 +163,7 @@ class AIChatService extends BaseService {
                 cost: cost_usd,
             });
         });
-        
+
         const svc_apiErrpr = this.services.get('api-error');
         svc_apiErrpr.register({
             max_tokens_exceeded: {
@@ -189,16 +189,16 @@ class AIChatService extends BaseService {
     * 
     * @returns {Promise<void>}
     */
-    async ['__on_boot.consolidation'] () {
+    async ['__on_boot.consolidation']() {
         {
             const svc_driver = this.services.get('driver')
-            for ( const provider of this.providers ) {
+            for (const provider of this.providers) {
                 svc_driver.register_service_alias('ai-chat',
                     provider.service_name);
             }
         }
 
-        for ( const provider of this.providers ) {
+        for (const provider of this.providers) {
             const delegate = this.services.get(provider.service_name)
                 .as('puter-chat-completion');
 
@@ -243,7 +243,7 @@ class AIChatService extends BaseService {
                     }
                 })();
                 const annotated_models = [];
-                for ( const model of models ) {
+                for (const model of models) {
                     annotated_models.push({
                         ...model,
                         provider: provider.service_name,
@@ -259,26 +259,26 @@ class AIChatService extends BaseService {
                 */
                 const set_or_push = (key, model) => {
                     // Typical case: no conflict
-                    if ( ! this.detail_model_map[key] ) {
+                    if (!this.detail_model_map[key]) {
                         this.detail_model_map[key] = model;
                         return;
                     }
 
                     // Conflict: model name will map to an array
                     let array = this.detail_model_map[key];
-                    if ( ! Array.isArray(array) ) {
+                    if (!Array.isArray(array)) {
                         array = [array];
                         this.detail_model_map[key] = array;
                     }
 
                     array.push(model);
                 };
-                for ( const model of annotated_models ) {
+                for (const model of annotated_models) {
                     set_or_push(model.id, model);
 
-                    if ( ! model.aliases ) continue;
+                    if (!model.aliases) continue;
 
-                    for ( const alias of model.aliases ) {
+                    for (const alias of model.aliases) {
                         set_or_push(alias, model);
                     }
                 }
@@ -286,13 +286,13 @@ class AIChatService extends BaseService {
         }
     }
 
-    register_provider (spec) {
+    register_provider(spec) {
         this.providers.push(spec);
     }
 
     static IMPLEMENTS = {
         ['driver-capabilities']: {
-            supports_test_mode (iface, method_name) {
+            supports_test_mode(iface, method_name) {
                 return iface === 'puter-chat-completion' &&
                     method_name === 'complete';
             }
@@ -324,9 +324,9 @@ class AIChatService extends BaseService {
             * 
             * @returns {Promise<Array<Object>>} Array of model objects with details like id, provider, cost, etc.
             */
-            async models () {
+            async models() {
                 const delegate = this.get_delegate();
-                if ( ! delegate ) return await this.models_();
+                if (!delegate) return await this.models_();
                 return await delegate.models();
             },
 
@@ -335,9 +335,9 @@ class AIChatService extends BaseService {
              * detail.
              * @returns {Promise<Array<string>} Array of model objects with basic details
              */
-            async list () {
+            async list() {
                 const delegate = this.get_delegate();
-                if ( ! delegate ) return await this.list_();
+                if (!delegate) return await this.list_();
                 return await delegate.list();
             },
 
@@ -374,12 +374,12 @@ class AIChatService extends BaseService {
             * @param {string} options.model   - The name of a model to use
             * @returns {TypedValue|Object} Returns either a TypedValue with streaming response or a completion object
             */
-            async complete (parameters) {
+            async complete(parameters) {
                 const client_driver_call = Context.get('client_driver_call');
                 let { test_mode, intended_service, response_metadata } = client_driver_call;
-                
+
                 const completionId = this.modules.cuid2();
-                
+
                 this.log.noticeme('AIChatService.complete', { intended_service, parameters, test_mode });
                 const svc_event = this.services.get('event');
                 const event = {
@@ -390,36 +390,36 @@ class AIChatService extends BaseService {
                     parameters
                 };
                 await svc_event.emit('ai.prompt.validate', event);
-                if ( ! event.allow ) {
+                if (!event.allow) {
                     test_mode = true;
-                    if ( event.custom ) parameters.custom = event.custom;
+                    if (event.custom) parameters.custom = event.custom;
                 }
 
-                if ( parameters.messages ) {
+                if (parameters.messages) {
                     parameters.messages =
                         Messages.normalize_messages(parameters.messages);
                 }
 
-                if ( ! test_mode && ! await this.moderate(parameters) ) {
+                if (!test_mode && ! await this.moderate(parameters)) {
                     test_mode = true;
                 }
 
-                if ( ! test_mode ) {
+                if (!test_mode) {
                     Context.set('moderated', true);
                 }
 
-                if ( test_mode ) {
+                if (test_mode) {
                     intended_service = 'fake-chat';
-                    if ( event.abuse ) {
+                    if (event.abuse) {
                         parameters.model = 'abuse';
                     }
                 }
 
-                if ( parameters.tools ) {
+                if (parameters.tools) {
                     FunctionCalling.normalize_tools_object(parameters.tools);
                 }
 
-                if ( intended_service === this.service_name ) {
+                if (intended_service === this.service_name) {
                     throw new Error('Calling ai-chat directly is not yet supported');
                 }
 
@@ -433,7 +433,7 @@ class AIChatService extends BaseService {
                 // Updated: Check usage and get a boolean result instead of throwing error
                 const svc_cost = this.services.get('cost');
                 const available = await svc_cost.get_available_amount();
-                
+
                 const model_details = this.get_model_details(model_used, {
                     service_used,
                 });
@@ -458,7 +458,7 @@ class AIChatService extends BaseService {
                     available,
                     minimum: approximate_input_cost,
                 });
-                
+
                 // Handle usage limits reached case
                 this.log.noticeme('DEBUGGING VALUES', {
                     messages: parameters.messages,
@@ -469,21 +469,21 @@ class AIChatService extends BaseService {
                     approximate_input_cost,
                     usageAllowed,
                 })
-                if ( !usageAllowed ) {
+                if (!usageAllowed) {
                     // The check_usage_ method has eady updated the intended_service to 'usage-limited-chat'
                     service_used = 'usage-limited-chat';
                     model_used = 'usage-limited';
                     // Update intended_service to match service_used
                     intended_service = service_used;
                 }
-                
+
                 const max_allowed_output_amount =
                     available - approximate_input_cost;
-                
+
                 const max_allowed_output_tokens =
                     max_allowed_output_amount / model_output_cost;
-                
-                if ( model_max_tokens ) {
+
+                if (model_max_tokens) {
                     parameters.max_tokens = Math.floor(Math.min(
                         parameters.max_tokens ?? Number.POSITIVE_INFINITY,
                         max_allowed_output_tokens,
@@ -516,15 +516,15 @@ class AIChatService extends BaseService {
                     // services. This is a best-effort attempt to catch user
                     // errors and throw them as 400s.
                     const is_request_error = (() => {
-                        if ( e instanceof APIError ) {
+                        if (e instanceof APIError) {
                             return true;
                         }
-                        if ( e.type === 'invalid_request_error' ) {
+                        if (e.type === 'invalid_request_error') {
                             return true;
                         }
                         let some_error = e;
-                        while ( some_error ) {
-                            if ( some_error.type === 'invalid_request_error' ) {
+                        while (some_error) {
+                            if (some_error.type === 'invalid_request_error') {
                                 return true;
                             }
                             some_error = some_error.error ?? some_error.cause;
@@ -532,7 +532,7 @@ class AIChatService extends BaseService {
                         return false;
                     })();
 
-                    if ( is_request_error ) {
+                    if (is_request_error) {
                         throw APIError.create('error_400_from_delegate', null, {
                             delegate: intended_service,
                             message: e.message,
@@ -540,7 +540,7 @@ class AIChatService extends BaseService {
                     }
                     console.error(e);
 
-                    if ( config.disable_fallback_mechanisms ) {
+                    if (config.disable_fallback_mechanisms) {
                         throw e;
                     }
 
@@ -549,9 +549,9 @@ class AIChatService extends BaseService {
                         model,
                         error: e,
                     });
-                    while ( !! error ) {
+                    while (!!error) {
                         // No fallbacks for pseudo-models
-                        if ( intended_service === 'fake-chat' ) {
+                        if (intended_service === 'fake-chat') {
                             break;
                         }
 
@@ -559,7 +559,7 @@ class AIChatService extends BaseService {
                             model, tried,
                         });
 
-                        if ( ! fallback ) {
+                        if (!fallback) {
                             throw new Error('no fallback model available');
                         }
 
@@ -577,7 +577,7 @@ class AIChatService extends BaseService {
                         // Check usage for fallback model too (with updated method)
                         const svc_cost = this.services.get('cost');
                         const fallbackUsageAllowed = await svc_cost.get_funding_allowed();
-                        
+
                         // If usage not allowed for fallback, use usage-limited-chat instead
                         if (!fallbackUsageAllowed) {
                             // The check_usage_ method has already updated intended_service
@@ -585,7 +585,7 @@ class AIChatService extends BaseService {
                             model_used = 'usage-limited';
                             // Clear the error to exit the fallback loop
                             error = null;
-                            
+
                             // Call the usage-limited service
                             ret = await svc_driver.call_new_({
                                 actor: Context.get('actor'),
@@ -629,15 +629,15 @@ class AIChatService extends BaseService {
                         }
                     }
                 }
-                
+
                 ret.result.via_ai_chat_service = true;
                 response_metadata.service_used = service_used;
-                
+
                 // Add flag if we're using the usage-limited service
                 if (service_used === 'usage-limited-chat') {
                     response_metadata.usage_limited = true;
                 }
-            
+
                 const username = Context.get('actor').type?.user?.username;
 
                 if (
@@ -645,7 +645,7 @@ class AIChatService extends BaseService {
                     // this means we're streaming and usage comes from a promise.
                     (ret.result instanceof TypedValue) &&
                     TypeSpec.adapt({ $: 'ai-chat-intermediate' })
-                    .equals(ret.result.type)
+                        .equals(ret.result.type)
                 ) {
                     (async () => {
                         const usage_promise = ret.result.value.usage_promise;
@@ -659,7 +659,7 @@ class AIChatService extends BaseService {
                         });
                     })();
 
-                    if ( ret.result.value.init_chat_stream ) {
+                    if (ret.result.value.init_chat_stream) {
                         const stream = new PassThrough();
                         const retval = new TypedValue({
                             $: 'stream',
@@ -700,7 +700,7 @@ class AIChatService extends BaseService {
                         usage: ret.result.usage,
                     });
                 }
-                
+
                 console.log('emitting ai.prompt.complete');
                 await svc_event.emit('ai.prompt.complete', {
                     username,
@@ -712,9 +712,9 @@ class AIChatService extends BaseService {
                 });
 
 
-                if ( parameters.response?.normalize ) {
+                if (parameters.response?.normalize) {
                     ret.result.message =
-                       Messages.normalize_single_message(ret.result.message);
+                        Messages.normalize_single_message(ret.result.message);
                     ret.result = {
                         message: ret.result.message,
                         via_ai_chat_service: true,
@@ -726,7 +726,7 @@ class AIChatService extends BaseService {
             }
         }
     }
-    
+
 
     /**
     * Checks if the user has permission to use AI services and verifies usage limits
@@ -738,7 +738,7 @@ class AIChatService extends BaseService {
     * @throws {APIError} If usage is not allowed or limits are exceeded
     * @private
     */
-    async check_usage_ ({ actor, service, model }) {
+    async check_usage_({ actor, service, model }) {
         const svc_permission = this.services.get('permission');
         const svc_event = this.services.get('event');
         const reading = await svc_permission.scan(actor, `paid-services:ai-chat`);
@@ -748,15 +748,15 @@ class AIChatService extends BaseService {
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
         const oneMonthAgoStr = oneMonthAgo.toISOString().slice(0, 19).replace('T', ' ');
-        
+
         const [row] = await this.db.read(
             'SELECT SUM(`cost`) AS sum FROM `ai_usage` ' +
             'WHERE `user_id` = ? AND `created_at` >= ?',
             [actor.type.user.id, oneMonthAgoStr]
         );
-        
+
         const cost_used = row?.sum || 0;
-    
+
         const event = {
             allowed: true,
             actor,
@@ -765,22 +765,22 @@ class AIChatService extends BaseService {
             permission_options: options,
         };
         await svc_event.emit('ai.prompt.check-usage', event);
-        
+
         // If the user has exceeded their usage limit, apply usage-limited-chat which lets them know
-        if ( event.error || ! event.allowed ) {
+        if (event.error || !event.allowed) {
             // Instead of throwing an error, modify the intended_service
             const client_driver_call = Context.get('client_driver_call');
             client_driver_call.intended_service = 'usage-limited-chat';
             client_driver_call.response_metadata.usage_limited = true;
-            
+
             // Return false to indicate that the user has gone over their limit and service has been changed
             return false;
         }
-        
+
         // Return true if the user has tokens to spend
         return true;
     }
-    
+
 
     /**
     * Moderates chat messages for inappropriate content using OpenAI's moderation service
@@ -795,31 +795,31 @@ class AIChatService extends BaseService {
     * Returns false immediately if any message is flagged as inappropriate.
     * Returns true if OpenAI service is unavailable or all messages pass moderation.
     */
-    async moderate ({ messages }) {
-        for ( const msg of messages ) {
+    async moderate({ messages }) {
+        for (const msg of messages) {
             const texts = [];
-            
-            // Function calls have no content
-            if ( msg.content === null ) continue;
 
-            if ( typeof msg.content === 'string' ) texts.push(msg.content);
-            else if ( typeof msg.content === 'object' ) {
-                if ( Array.isArray(msg.content) ) {
+            // Function calls have no content
+            if (msg.content === null) continue;
+
+            if (typeof msg.content === 'string') texts.push(msg.content);
+            else if (typeof msg.content === 'object') {
+                if (Array.isArray(msg.content)) {
                     texts.push(...msg.content.filter(o => (
-                        ( ! o.type && o.hasOwnProperty('text') ) ||
+                        (!o.type && o.hasOwnProperty('text')) ||
                         o.type === 'text')).map(o => o.text));
                 }
                 else texts.push(msg.content.text);
             }
-            
+
             const fulltext = texts.join('\n');
-            
+
             let mod_last_error = null;
             let mod_result = null;
             try {
                 const svc_openai = this.services.get('openai-completion');
                 mod_result = await svc_openai.check_moderation(fulltext);
-                if ( mod_result.flagged ) return false;
+                if (mod_result.flagged) return false;
                 continue;
             } catch (e) {
                 console.error(e);
@@ -827,12 +827,12 @@ class AIChatService extends BaseService {
             }
             try {
                 const svc_claude = this.services.get('claude');
-                const chat = svc_claude.as('puter-chat-completion');       
+                const chat = svc_claude.as('puter-chat-completion');
                 const mod = new AsModeration({
                     chat,
                     model: 'claude-3-haiku-20240307',
                 })
-                if ( ! await mod.moderate(fulltext) ) {
+                if (! await mod.moderate(fulltext)) {
                     return false;
                 }
                 mod_last_error = null;
@@ -841,8 +841,8 @@ class AIChatService extends BaseService {
                 console.error(e);
                 mod_last_error = e;
             }
-            
-            if ( mod_last_error ) {
+
+            if (mod_last_error) {
                 this.log.error('moderation error', {
                     fulltext,
                     mod_last_error,
@@ -854,7 +854,7 @@ class AIChatService extends BaseService {
     }
 
 
-    async models_ () {
+    async models_() {
         return this.detail_model_list;
     }
 
@@ -863,7 +863,7 @@ class AIChatService extends BaseService {
     * Returns a list of available AI models with basic details
     * @returns {Promise<Array>} Array of simple model objects containing basic model information
     */
-    async list_ () {
+    async list_() {
         return this.simple_model_list;
     }
 
@@ -875,9 +875,9 @@ class AIChatService extends BaseService {
     * 
     * @returns {Object|undefined} The delegate service or undefined if intended service is ai-chat
     */
-    get_delegate () {
+    get_delegate() {
         const client_driver_call = Context.get('client_driver_call');
-        if ( client_driver_call.intended_service === this.service_name ) {
+        if (client_driver_call.intended_service === this.service_name) {
             return undefined;
         }
         console.log('getting service', client_driver_call.intended_service);
@@ -893,13 +893,13 @@ class AIChatService extends BaseService {
      * @param {*} param0 
      * @returns 
      */
-    get_fallback_model ({ model, tried }) {
+    get_fallback_model({ model, tried }) {
         let target_model = this.detail_model_map[model];
-        if ( ! target_model ) {
+        if (!target_model) {
             this.log.error('could not find model', { model });
             throw new Error('could not find model');
         }
-        if ( Array.isArray(target_model) ) {
+        if (Array.isArray(target_model)) {
             // TODO: better conflict resolution
             this.log.noticeme('conflict exists', { model, target_model });
             target_model = target_model[0];
@@ -909,7 +909,7 @@ class AIChatService extends BaseService {
         let sorted_models = this.modules.kv.get(
             `${this.kvkey}:fallbacks:${model}`);
 
-        if ( ! sorted_models ) {
+        if (!sorted_models) {
             // Calculate the sorted list
             const models = this.detail_model_list;
 
@@ -929,9 +929,9 @@ class AIChatService extends BaseService {
                 `${this.kvkey}:fallbacks:${model}`, sorted_models);
         }
 
-        for ( const model of sorted_models ) {
-            if ( tried.includes(model.id) ) continue;
-            if ( model.provider === 'fake-chat' ) continue;
+        for (const model of sorted_models) {
+            if (tried.includes(model.id)) continue;
+            if (model.provider === 'fake-chat') continue;
 
             return {
                 fallback_service_name: model.provider,
@@ -946,27 +946,32 @@ class AIChatService extends BaseService {
         });
     }
 
-    get_model_from_request (parameters, modified_context = {}) {
+    get_model_from_request(parameters, modified_context = {}) {
         const client_driver_call = Context.get('client_driver_call');
         let { intended_service } = client_driver_call;
-        
-        if ( modified_context.intended_service ) {
+
+        if (modified_context.intended_service) {
             intended_service = modified_context.intended_service;
         }
 
         let model = parameters.model;
-        if ( ! model ) {
+        if (!model) {
             const service = this.services.get(intended_service);
-            if ( ! service.get_default_model ) {
+            if (!service.get_default_model) {
                 throw new Error('could not infer model from service');
             }
             model = service.get_default_model();
-            if ( ! model ) {
+            if (!model) {
                 throw new Error('could not infer model from service');
             }
         }
 
         return model;
+    }
+
+    async _test(assert) {
+        console.log("Hello, world!");
+        assert(() => 1 + 1 === 2, "1 + 1 equals 2");
     }
 }
 

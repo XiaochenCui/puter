@@ -24,24 +24,25 @@ const CoreModule = require("../src/CoreModule");
 const { Context } = require("../src/util/context");
 const { Kernel } = require("../src/Kernel");
 const { HTTPThumbnailService } = require("../src/services/thumbnails/HTTPThumbnailService");
+const { AIChatService } = require("../src/modules/puterai/AIChatService");
 
 
 /**
  * A simple implementation of the log interface for the test kernel.
  */
 class TestLogger {
-    constructor () {
+    constructor() {
         console.log(
             `\x1B[36;1mBoot logger started :)\x1B[0m`,
         );
     }
-    info (...args) {
+    info(...args) {
         console.log(
             '\x1B[36;1m[TESTKERNEL/INFO]\x1B[0m',
             ...args,
         );
     }
-    error (...args) {
+    error(...args) {
         console.log(
             '\x1B[31;1m[TESTKERNEL/ERROR]\x1B[0m',
             ...args,
@@ -60,7 +61,7 @@ class TestLogger {
 * Does not include full service initialization or legacy service support
 */
 class TestKernel extends AdvancedBase {
-    constructor () {
+    constructor() {
         super();
 
         this.modules = [];
@@ -80,7 +81,7 @@ class TestKernel extends AdvancedBase {
         this.logfn_ = (...a) => a;
     }
 
-    add_module (module) {
+    add_module(module) {
         this.modules.push(module);
     }
 
@@ -90,7 +91,7 @@ class TestKernel extends AdvancedBase {
     * @param {Module} module - The module instance to add
     * @description Stores the provided module in the kernel's internal modules array for later installation
     */
-    boot () {
+    boot() {
         const { consoleLogManager } = require('../src/util/consolelog');
         consoleLogManager.initialize_proxy_methods();
 
@@ -99,7 +100,7 @@ class TestKernel extends AdvancedBase {
         });
 
         const { Container } = require('../src/services/Container');
-        
+
         this.testLogger = new TestLogger();
 
         const services = new Container({ logger: this.testLogger });
@@ -126,13 +127,13 @@ class TestKernel extends AdvancedBase {
     /**
     * Installs modules into the test kernel environment
     */
-    async _install_modules () {
+    async _install_modules() {
         const { services } = this;
 
         const mod_install_root_context = Context.get();
 
 
-        for ( const module of this.modules ) {
+        for (const module of this.modules) {
             console.log('module?"???', module)
             const mod_context = this._create_mod_context(
                 mod_install_root_context,
@@ -163,7 +164,7 @@ TestKernel.prototype._create_mod_context =
     Kernel.prototype._create_mod_context;
 
 const k = new TestKernel();
-for ( const mod of EssentialModules ) {
+for (const mod of EssentialModules) {
     k.add_module(new mod());
 }
 k.add_module({
@@ -171,6 +172,12 @@ k.add_module({
         const services = context.get('services');
         services.registerService('thumbs-http', HTTPThumbnailService);
     }
+});
+k.add_module({
+    install: async (context) => {
+        const services = context.get('services');
+        services.registerService('ai-chat', AIChatService);
+    },
 });
 k.boot();
 
@@ -200,7 +207,7 @@ let total_failed = 0;
 * @type {number} total_failed - Count of all failed assertions
 */
 const main = async () => {
-    console.log('awaiting services readty');
+    console.log('awaiting services ready');
     await k.services.ready;
     console.log('services have become ready');
 
@@ -208,15 +215,15 @@ const main = async () => {
         ? process.argv.slice(2)
         : Object.keys(k.services.instances_);
 
-    for ( const name of service_names) {
-        if ( ! k.services.instances_[name] ) {
+    for (const name of service_names) {
+        if (!k.services.instances_[name]) {
             console.log(`\x1B[31;1mService not found: ${name}\x1B[0m`);
             process.exit(1);
         }
 
         const ins = k.services.instances_[name];
         ins.construct();
-        if ( ! ins._test || typeof ins._test !== 'function' ) {
+        if (!ins._test || typeof ins._test !== 'function') {
             continue;
         }
         ins.log = k.testLogger;
@@ -231,7 +238,7 @@ const main = async () => {
         const testapi = {
             assert: (condition, name) => {
                 name = name || condition.toString();
-                if ( condition() ) {
+                if (condition()) {
                     passed++;
                     repeat_after(() => console.log(`\x1B[32;1m  ✔ ${name}\x1B[0m`));
                 } else {
@@ -243,7 +250,7 @@ const main = async () => {
 
         testapi.assert.equal = (a, b, name) => {
             name = name || `${a} === ${b}`;
-            if ( a === b ) {
+            if (a === b) {
                 passed++;
                 repeat_after(() => console.log(`\x1B[32;1m  ✔ ${name}\x1B[0m`));
             } else {
@@ -266,7 +273,7 @@ const main = async () => {
         'ASSERTION OUTPUTS ARE REPEATED BELOW' +
         ` \x1B[36;1m===>\x1B[0m`);
 
-    for ( const fn of do_after_tests_ ) {
+    for (const fn of do_after_tests_) {
         fn();
     }
 
