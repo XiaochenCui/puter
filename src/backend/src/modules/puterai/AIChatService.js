@@ -434,6 +434,9 @@ class AIChatService extends BaseService {
                 const svc_cost = this.services.get('cost');
                 const available = await svc_cost.get_available_amount();
 
+                // case1: <vendor>/<model-name>, which is existing logic
+                // case2: <supplier>:<vendor>/<model-name>, just forward the request to supplier
+
                 const model_details = this.get_model_details(model_used, {
                     service_used,
                 });
