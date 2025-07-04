@@ -12,7 +12,7 @@ This rule applies to `model` field in AI-related API endpoints. Such as:
 
 - interface (type: string, required) (`"puter-chat-completion"`)
 - method (type: string, required) (`"complete"`)
-- driver (type: string, optional) (`"ai-chat"` / `"openrouter"`)
+- driver (type: string, optional) (`"ai-chat"`)
 - args
   - model (type: string, required) (e.g., `"gpt-4o"`, `"openai/gpt-4o"`, `"azure:openai/gpt-4o"`)
   - messages (type: array, required)

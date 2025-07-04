@@ -972,9 +972,9 @@ class AIChatService extends BaseService {
         return model;
     }
 
-    async _test(assert) {
+    async _test({ assert }) {
         console.log("Hello, world!");
-        assert(() => 1 + 1 === 2, "1 + 1 equals 2");
+        assert(() => 1 + 1 === 3, "1 + 1 equals 2");
     }
 }
 
