@@ -19,13 +19,41 @@
 const { Context } = require("../../util/context");
 const { HLFilesystemOperation } = require("./definitions");
 const APIError = require('../../api/APIError');
+const { NodeUIDSelector } = require("../node/selectors");
 
 class HLStat extends HLFilesystemOperation {
     static MODULES = {
         ['mime-types']: require('mime-types'),
     }
 
+    async _run_new (values) {
+        const {
+            subject
+        } = values;
+
+        if ( subject?.uid ) {
+            // get provider
+            const selector = new NodeUIDSelector(subject.uid);
+            const context = Context.get();
+            const svc_mountpoint = context.get('services').get('mountpoint');
+            const provider = await svc_mountpoint.get_provider(selector);
+
+            return provider.stat_new({
+                selector,
+            });
+        }
+
+        console.error('stat: no uid');
+        return {};
+    }
+
     async _run () {
+        if ( this.values.subject?.uid ) {
+            return await this._run_new(this.values);
+        }
+
+        console.log('values: ', this.values);
+
         const {
             subject, user,
             return_subdomains,

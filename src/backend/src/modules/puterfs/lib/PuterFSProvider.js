@@ -112,12 +112,37 @@ class PuterFSProvider extends putility.AdvancedBase {
         return false;
     }
 
+    async stat_new({
+        selector,
+    }) {
+        const {
+            fsEntryFetcher,
+        } = Context.get('services').values;
+
+        const entry = await fsEntryFetcher.find(selector);
+
+        if ( entry.is_dir ) {
+            entry.is_dir = true;
+        } else {
+            entry.is_dir = false;
+        }
+
+        return entry;
+    }
+
     async stat ({
         selector,
         options,
         controls,
         node,
     }) {
+        // if ( selector instanceof NodeUIDSelector ) {
+        //     return await this.stat_new({
+        //         selector,
+        //     });
+        // }
+
+
         // For Puter FS nodes, we assume we will obtain all properties from
         // fsEntryService/fsEntryFetcher, except for 'thumbnail' unless it's
         // explicitly requested.

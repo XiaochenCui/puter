@@ -240,6 +240,10 @@ class MemoryFSProvider {
         return false;
     }
 
+    async stat_new({ selector }) {
+        return this.stat({ selector });
+    }
+
     /**
      * Performs a stat operation using the given selector.
      * 

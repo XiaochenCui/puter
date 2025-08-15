@@ -31,6 +31,13 @@ module.exports = class FSNodeParam {
     }
 
     async consolidate ({ req, getParam }) {
+        if ( req.url?.includes('stat') ) {
+            if ( req.body?.uid ) {
+                console.log('skip consolidate for url: ', req.url, req.body);
+                return req.body;
+            }
+        }
+
         const log = globalThis.services.get('log-service').create('fsnode-param');
         const fs = Context.get('services').get('filesystem');
 
