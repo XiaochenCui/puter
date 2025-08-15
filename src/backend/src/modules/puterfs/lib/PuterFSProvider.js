@@ -120,6 +120,9 @@ class PuterFSProvider extends putility.AdvancedBase {
         } = Context.get('services').values;
 
         const entry = await fsEntryFetcher.find(selector);
+        if ( ! entry ) {
+            return null;
+        }
 
         if ( entry.is_dir ) {
             entry.is_dir = true;

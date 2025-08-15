@@ -36,11 +36,17 @@ class HLStat extends HLFilesystemOperation {
             const selector = new NodeUIDSelector(subject.uid);
             const context = Context.get();
             const svc_mountpoint = context.get('services').get('mountpoint');
-            const provider = await svc_mountpoint.get_provider(selector);
 
-            return provider.stat_new({
-                selector,
-            });
+            for ( const [path, { provider }] of Object.entries(svc_mountpoint.mountpoints_) ) {
+                const entry = await provider.stat_new({
+                    selector,
+                });
+                if ( entry ) {
+                    return entry;
+                }
+            }
+
+            throw APIError.create('subject_does_not_exist');
         }
 
         console.error('stat: no uid');
