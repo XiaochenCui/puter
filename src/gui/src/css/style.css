@@ -5134,3 +5134,70 @@ fieldset[name=number-code] {
     text-overflow: ellipsis; 
     white-space: nowrap;
 }
+
+/* Pinned tab styles for local replica status */
+.pinned-tab {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999999;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    user-select: none;
+    pointer-events: none;
+}
+
+.pinned-tab:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+}
+
+.pinned-tab-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pinned-tab-label {
+    opacity: 0.8;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pinned-tab-value {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.pinned-tab.local-replica-status .pinned-tab-value {
+    color: #4ade80;
+}
+
+.pinned-tab.local-replica-status .pinned-tab-value:contains('Unavailable') {
+    color: #f87171;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .pinned-tab {
+        top: 10px;
+        right: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+    
+    .pinned-tab-value {
+        font-size: 14px;
+    }
+}

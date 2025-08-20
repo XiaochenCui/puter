@@ -17,31 +17,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import path from "../lib/path.js"
-import UIWindowClaimReferral from "./UIWindowClaimReferral.js"
-import UIContextMenu from './UIContextMenu.js'
-import UIItem from './UIItem.js'
-import UIAlert from './UIAlert.js'
-import UIWindow from './UIWindow.js'
-import UIWindowSaveAccount from './UIWindowSaveAccount.js';
-import UIWindowDesktopBGSettings from "./UIWindowDesktopBGSettings.js"
-import UIWindowMyWebsites from "./UIWindowMyWebsites.js"
-import UIWindowFeedback from "./UIWindowFeedback.js"
-import UIWindowLogin from "./UIWindowLogin.js"
-import UIWindowQR from "./UIWindowQR.js"
-import UIWindowRefer from "./UIWindowRefer.js"
-import UITaskbar from "./UITaskbar.js"
+import item_icon from "../helpers/item_icon.js"
+import launch_app from "../helpers/launch_app.js"
 import new_context_menu_item from "../helpers/new_context_menu_item.js"
 import refresh_item_container from "../helpers/refresh_item_container.js"
+import truncate_filename from '../helpers/truncate_filename.js'
 import changeLanguage from "../i18n/i18nChangeLanguage.js"
+import path from "../lib/path.js"
 import UIWindowSettings from "./Settings/UIWindowSettings.js"
-import UIWindowTaskManager from "./UIWindowTaskManager.js"
-import truncate_filename from '../helpers/truncate_filename.js';
+import UIAlert from './UIAlert.js'
+import UIContextMenu from './UIContextMenu.js'
+import UIItem from './UIItem.js'
 import UINotification from "./UINotification.js"
-import UIWindowWelcome from "./UIWindowWelcome.js"
-import launch_app from "../helpers/launch_app.js"
-import item_icon from "../helpers/item_icon.js"
+import UITaskbar from "./UITaskbar.js"
+import UIWindow from './UIWindow.js'
+import UIWindowClaimReferral from "./UIWindowClaimReferral.js"
+import UIWindowDesktopBGSettings from "./UIWindowDesktopBGSettings.js"
+import UIWindowFeedback from "./UIWindowFeedback.js"
+import UIWindowLogin from "./UIWindowLogin.js"
+import UIWindowMyWebsites from "./UIWindowMyWebsites.js"
+import UIWindowQR from "./UIWindowQR.js"
+import UIWindowRefer from "./UIWindowRefer.js"
+import UIWindowSaveAccount from './UIWindowSaveAccount.js'
 import UIWindowSearch from "./UIWindowSearch.js"
+import UIWindowTaskManager from "./UIWindowTaskManager.js"
+import UIWindowWelcome from "./UIWindowWelcome.js"
 
 async function UIDesktop(options) {
     // start a transaction if we're not in embedded or fullpage mode
@@ -709,6 +709,14 @@ async function UIDesktop(options) {
             >`;
     h += `</div>`;
 
+    // Pinned tab for local replica availability status
+    h += `<div class="pinned-tab local-replica-status" id="local-replica-status-tab">
+            <div class="pinned-tab-content">
+                <span class="pinned-tab-label">Local Replica:</span>
+                <span class="pinned-tab-value" id="local-replica-status-value">${window.local_replica_available ? 'Available' : 'Unavailable'}</span>
+            </div>
+          </div>`;
+
     // Get window sidebar width
     puter.kv.get('window_sidebar_width').then(async (val) => {
         let value = parseInt(val);
@@ -746,6 +754,33 @@ async function UIDesktop(options) {
 
     // Append to <body>
     $('body').append(h);
+
+    // Initialize and setup the local replica status pinned tab
+    const updateLocalReplicaStatus = () => {
+        const statusElement = document.getElementById('local-replica-status-value');
+        if (statusElement) {
+            statusElement.textContent = window.local_replica_available ? 'Available' : 'Unavailable';
+            statusElement.style.color = window.local_replica_available ? '#4ade80' : '#f87171';
+        }
+    };
+
+    // Make the global variable accessible and observable in console
+    Object.defineProperty(window, 'local_replica_available', {
+        get: function() {
+            return this._local_replica_available;
+        },
+        set: function(value) {
+            this._local_replica_available = Boolean(value);
+            updateLocalReplicaStatus();
+            console.log('local_replica_available changed to:', this._local_replica_available);
+        }
+    });
+
+    // Set initial value
+    window.local_replica_available = window.local_replica_available;
+
+    // Update the display initially
+    updateLocalReplicaStatus();
 
     // Set desktop height based on taskbar height
     $('.desktop').css('height', `calc(100vh - ${window.taskbar_height + window.toolbar_height}px)`)

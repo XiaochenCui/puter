@@ -1,21 +1,23 @@
 import io from '../../lib/socket.io/socket.io.esm.min.js';
 
 // Operations
-import space from "./operations/space.js";
-import mkdir from "./operations/mkdir.js";
 import copy from "./operations/copy.js";
-import rename from "./operations/rename.js";
-import upload from "./operations/upload.js";
-import read from "./operations/read.js";
+import merkle from './operations/merkle.js';
+import mkdir from "./operations/mkdir.js";
 import move from "./operations/move.js";
-import write from "./operations/write.js";
+import read from "./operations/read.js";
+import rename from "./operations/rename.js";
 import sign from "./operations/sign.js";
+import space from "./operations/space.js";
 import symlink from './operations/symlink.js';
+import upload from "./operations/upload.js";
+import write from "./operations/write.js";
 // Why is this called deleteFSEntry instead of just delete? because delete is 
 // a reserved keyword in javascript
-import deleteFSEntry from "./operations/deleteFSEntry.js";
 import { AdvancedBase } from '../../../../putility/index.js';
+import { ClientFS } from '../../lib/filesystem/ClientFS.js';
 import FSItem from '../FSItem.js';
+import deleteFSEntry from "./operations/deleteFSEntry.js";
 
 export class PuterJSFileSystemModule extends AdvancedBase {
 
@@ -32,14 +34,23 @@ export class PuterJSFileSystemModule extends AdvancedBase {
     write = write;
     sign = sign;
     symlink = symlink;
+    merkle = merkle;
     
     FSItem = FSItem
+
+    // Simple client-side filesystem
+    clientFS = null;
 
     static NARI_METHODS = {
         stat: {
             positional: ['path'],
             firstarg_options: true,
             async fn (parameters) {
+                // Simple switch: use client FS if local_replica_available is true
+                if (window.local_replica_available === true && this.clientFS) {
+                    return this.clientFS.stat(parameters);
+                }
+                // Otherwise use server filesystem
                 const svc_fs = await this.context.services.aget('filesystem');
                 return svc_fs.filesystem.stat(parameters);
             }
@@ -48,6 +59,11 @@ export class PuterJSFileSystemModule extends AdvancedBase {
             positional: ['path'],
             firstarg_options: true,
             async fn (parameters) {
+                // Simple switch: use client FS if local_replica_available is true
+                if (window.local_replica_available === true && this.clientFS) {
+                    return this.clientFS.readdir(parameters);
+                }
+                // Otherwise use server filesystem
                 const svc_fs = await this.context.services.aget('filesystem');
                 return svc_fs.filesystem.readdir(parameters);
             }
@@ -59,9 +75,7 @@ export class PuterJSFileSystemModule extends AdvancedBase {
      * and connects to the socket.
      *
      * @class
-     * @param {string} authToken - Token used to authenticate the user.
-     * @param {string} APIOrigin - Origin of the API server. Used to build the API endpoint URLs.
-     * @param {string} appID - ID of the app to use.
+     * @param {Object} context - Context object containing authToken, APIOrigin, and appID.
      */
     constructor (context) {
         super();
@@ -69,6 +83,10 @@ export class PuterJSFileSystemModule extends AdvancedBase {
         this.APIOrigin = context.APIOrigin;
         this.appID = context.appID;
         this.context = context;
+        
+        // Initialize simple client filesystem
+        this.clientFS = new ClientFS();
+        
         // Connect socket.
         this.initializeSocket();
 
@@ -82,7 +100,6 @@ export class PuterJSFileSystemModule extends AdvancedBase {
             get: () => this.APIOrigin,
         });
     }
-
 
     /**
      * Initializes the socket connection to the server using the current API origin.

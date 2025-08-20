@@ -69,6 +69,9 @@ if(window.logged_in_users.length === 0 && window.user !== null){
 
 window.last_window_zindex = 1;
 
+// Global variable for local replica availability
+window.local_replica_available = false;
+
 // first visit tracker
 window.first_visit_ever = localStorage.getItem("has_visited_before") === null ? true : false;
 localStorage.setItem("has_visited_before", true);

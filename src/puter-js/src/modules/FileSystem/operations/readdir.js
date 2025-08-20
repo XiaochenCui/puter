@@ -16,6 +16,11 @@ const readdir = async function (...args) {
         };
     }
 
+    if (window.local_replica_available === true && this.clientFS) {
+        console.log('[clientFS] readdir', options.path);
+        return this.clientFS.readdir(options.path);
+    }
+
     return new Promise(async (resolve, reject) => {
         // path is required
         if(!options.path){

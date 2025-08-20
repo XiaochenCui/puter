@@ -18,13 +18,19 @@ const stat = async function (...args) {
         };
     }
 
+    // Simple switch: use client FS if local_replica_available is true
+    if (window.local_replica_available === true && this.clientFS) {
+        console.log('[clientFS] stat', options.path);
+        return this.clientFS.stat(options.path);
+    }
+
     return new Promise(async (resolve, reject) => {
         // If auth token is not provided and we are in the web environment, 
         // try to authenticate with Puter
-        if(!puter.authToken && puter.env === 'web'){
-            try{
+        if (!puter.authToken && puter.env === 'web') {
+            try {
                 await puter.ui.authenticateWithPuter();
-            }catch(e){
+            } catch (e) {
                 // if authentication fails, throw an error
                 reject('Authentication failed.');
             }
@@ -44,7 +50,7 @@ const stat = async function (...args) {
             // in that case, we need to prepend the app's root directory to it
             dataToSend.path = getAbsolutePathForApp(options.path);
         }
-        
+
         dataToSend.return_subdomains = options.returnSubdomains;
         dataToSend.return_permissions = options.returnPermissions;
         dataToSend.return_versions = options.returnVersions;

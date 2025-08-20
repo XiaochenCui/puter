@@ -18,6 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 const BaseService = require("./BaseService");
+const { Endpoint } = require("../util/expressutil");
 
 
 /**
@@ -68,6 +69,32 @@ class FilesystemAPIService extends BaseService {
 
         // misc
         app.use(require('../routers/df'))
+
+        // merkle tree endpoint
+        Endpoint({
+            route: '/fs/merkle',
+            methods: ['GET'],
+            handler: async (req, res) => {
+                const { path } = req.query;
+                
+                if (!path) {
+                    return res.status(400).json({ error: 'path parameter is required' });
+                }
+
+                try {
+                    const filesystemService = this.services.get('filesystem');
+                    const merkleTree = await filesystemService._generateMerkleTree(path);
+                    
+                    if (merkleTree.hash === '0' && merkleTree.stat.type === 'nonexistent') {
+                        return res.status(404).json({ error: 'Path not found' });
+                    }
+                    
+                    res.json(merkleTree);
+                } catch (error) {
+                    res.status(500).json({ error: error.message });
+                }
+            }
+        }).attach(app);
 
     }
 }
