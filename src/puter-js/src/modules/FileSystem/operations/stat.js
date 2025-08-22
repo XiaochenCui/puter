@@ -18,18 +18,35 @@ const stat = async function (...args) {
         };
     }
 
+    if (window.replica_available) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const result = await window.FSTree.stat(options);
+                if (options.success) {
+                    options.success(result);
+                }
+                resolve(result);
+            } catch (error) {
+                if (options.error) {
+                    options.error(error);
+                }
+                reject(error);
+            }
+        });
+    }
+
     return new Promise(async (resolve, reject) => {
         // consistency levels
-        if(!options.consistency){
+        if (!options.consistency) {
             options.consistency = 'strong';
         }
 
         // If auth token is not provided and we are in the web environment, 
         // try to authenticate with Puter
-        if(!puter.authToken && puter.env === 'web'){
-            try{
+        if (!puter.authToken && puter.env === 'web') {
+            try {
                 await puter.ui.authenticateWithPuter();
-            }catch(e){
+            } catch (e) {
                 // if authentication fails, throw an error
                 reject('Authentication failed.');
             }
@@ -37,16 +54,16 @@ const stat = async function (...args) {
 
         // Generate cache key based on path or uid
         let cacheKey;
-        if(options.path){
+        if (options.path) {
             cacheKey = 'item:' + options.path;
-        }else if(options.uid){
+        } else if (options.uid) {
             cacheKey = 'item:' + options.uid;
         }
 
-        if(options.consistency === 'eventual' && !options.returnSubdomains && !options.returnPermissions && !options.returnVersions && !options.returnSize){
+        if (options.consistency === 'eventual' && !options.returnSubdomains && !options.returnPermissions && !options.returnVersions && !options.returnSize) {
             // Check cache
             const cachedResult = await puter._cache.get(cacheKey);
-            if(cachedResult){
+            if (cachedResult) {
                 resolve(cachedResult);
                 return;
             }
@@ -59,17 +76,17 @@ const stat = async function (...args) {
         utils.setupXhrEventHandlers(xhr, options.success, options.error, async (result) => {
             // Calculate the size of the result for cache eligibility check
             const resultSize = JSON.stringify(result).length;
-            
+
             // Cache the result if it's not bigger than MAX_CACHE_SIZE
             const MAX_CACHE_SIZE = 20 * 1024 * 1024;
             const EXPIRE_TIME = 60 * 60; // 1 hour
 
-            if(resultSize <= MAX_CACHE_SIZE){
+            if (resultSize <= MAX_CACHE_SIZE) {
                 // UPSERT the cache
                 await puter._cache.set('item:' + result.path, result, { EX: EXPIRE_TIME });
                 await puter._cache.set('item:' + result.uid, result, { EX: EXPIRE_TIME });
             }
-            
+
             resolve(result);
         }, reject);
 
@@ -81,7 +98,7 @@ const stat = async function (...args) {
             // in that case, we need to prepend the app's root directory to it
             dataToSend.path = getAbsolutePathForApp(options.path);
         }
-        
+
         dataToSend.return_subdomains = options.returnSubdomains;
         dataToSend.return_permissions = options.returnPermissions;
         dataToSend.return_versions = options.returnVersions;

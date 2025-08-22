@@ -62,6 +62,9 @@ class FilesystemAPIService extends BaseService {
         
         app.use(require('../routers/filesystem_api/search'))
         
+        // replica
+        app.use(require('../routers/filesystem_api/replica_fetch'))
+        
         // v1
         app.use(require('../routers/writeFile'))
         app.use(require('../routers/file'))

@@ -17,19 +17,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import path from "./lib/path.js"
-import mime from "./lib/mime.js";
-import UIAlert from './UI/UIAlert.js'
-import UIItem from './UI/UIItem.js'
-import UIWindowLogin from './UI/UIWindowLogin.js';
-import UIWindowSaveAccount from './UI/UIWindowSaveAccount.js';
-import update_username_in_gui from './helpers/update_username_in_gui.js';
-import update_title_based_on_uploads from './helpers/update_title_based_on_uploads.js';
-import truncate_filename from './helpers/truncate_filename.js';
-import UIWindowProgress from './UI/UIWindowProgress.js';
-import globToRegExp from "./helpers/globToRegExp.js";
 import get_html_element_from_options from "./helpers/get_html_element_from_options.js";
+import globToRegExp from "./helpers/globToRegExp.js";
 import item_icon from "./helpers/item_icon.js";
+import truncate_filename from './helpers/truncate_filename.js';
+import update_title_based_on_uploads from './helpers/update_title_based_on_uploads.js';
+import update_username_in_gui from './helpers/update_username_in_gui.js';
+import mime from "./lib/mime.js";
+import path from "./lib/path.js";
+import UIAlert from './UI/UIAlert.js';
+import UIItem from './UI/UIItem.js';
+import UIWindowLogin from './UI/UIWindowLogin.js';
+import UIWindowProgress from './UI/UIWindowProgress.js';
+import UIWindowSaveAccount from './UI/UIWindowSaveAccount.js';
 
 window.is_auth = ()=>{
     if(localStorage.getItem("auth_token") === null || window.auth_token === null)
@@ -518,6 +518,7 @@ window.update_auth_data = async (auth_token, user)=>{
     window.desktop_path = '/' + window.user.username + '/Desktop';
     window.home_path = '/' + window.user.username;
     window.public_path =  '/' + window.user.username + '/Public';
+    window.replica_available = false;
 
     if(window.user !== null && !window.user.is_temp){
         $('.user-options-login-btn, .user-options-create-account-btn').hide();
@@ -526,6 +527,11 @@ window.update_auth_data = async (auth_token, user)=>{
 
     // Search and store user templates (non-blocking)
     window.available_templates()
+    // Search and store user templates
+    window.file_templates = await window.available_templates()
+
+    // Fetch replica for user's home directory after login
+    puter.fs.replica.fetch(window.home_path);
 }
 
 window.mutate_user_preferences = function(user_preferences_delta) {

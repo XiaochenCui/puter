@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+import "google/protobuf/struct.proto";
+
+package fs_tree_manager;
+
+option go_package = "github.com/puter/fs_tree_manager";
+
+service FSTreeManager {
+  rpc FetchReplica(FetchReplicaRequest) returns (FetchReplicaResponse);
+}
+
+message FetchReplicaRequest {
+  string user_name = 1;
+}
+
+message FetchReplicaResponse {
+  MerkleTree tree = 1;
+}
+
+message MerkleTree {
+  // Name of the file/directory, e.g. "Notebook.md", "New Folder", etc.
+  string name = 1;
+  string merkle_hash = 2;
+  google.protobuf.Struct metadata = 3;
+  repeated MerkleTree children = 4;
+}

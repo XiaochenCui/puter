@@ -1,24 +1,27 @@
 import io from '../../lib/socket.io/socket.io.esm.min.js';
 
 // Operations
-import space from "./operations/space.js";
-import mkdir from "./operations/mkdir.js";
 import copy from "./operations/copy.js";
-import rename from "./operations/rename.js";
-import upload from "./operations/upload.js";
-import read from "./operations/read.js";
+import mkdir from "./operations/mkdir.js";
 import move from "./operations/move.js";
-import write from "./operations/write.js";
-import sign from "./operations/sign.js";
-import symlink from './operations/symlink.js';
+import read from "./operations/read.js";
 import readdir from './operations/readdir.js';
+import rename from "./operations/rename.js";
+import sign from "./operations/sign.js";
+import space from "./operations/space.js";
 import stat from './operations/stat.js';
+import symlink from './operations/symlink.js';
+import upload from "./operations/upload.js";
+import write from "./operations/write.js";
 // Why is this called deleteFSEntry instead of just delete? because delete is 
 // a reserved keyword in javascript
-import deleteFSEntry from "./operations/deleteFSEntry.js";
 import { AdvancedBase } from '../../../../putility/index.js';
 import FSItem from '../FSItem.js';
+import deleteFSEntry from "./operations/deleteFSEntry.js";
 import getReadURL from './operations/getReadUrl.js';
+
+// client-replica
+import replica_fetch from "./replica/fetch.js";
 
 export class PuterJSFileSystemModule extends AdvancedBase {
 
@@ -38,6 +41,11 @@ export class PuterJSFileSystemModule extends AdvancedBase {
     getReadURL = getReadURL;
     readdir = readdir;
     stat = stat;
+
+    // Replica functionality
+    replica = {
+        fetch: replica_fetch
+    };
 
     FSItem = FSItem
 
