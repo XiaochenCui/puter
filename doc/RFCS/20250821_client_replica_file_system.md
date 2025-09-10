@@ -1,19 +1,26 @@
 - Feature Name: Client Replica Filesystem
 - Status: Draft
 - Date: 2025-08-21
-- RFC PR: N/A
 
 ## Summary
 
-**Client Replica Filesystem** is a mechanism that stores a complete copy of a user’s file metadata on the client and periodically synchronizes changes with the server. This feature enables:
+**Client Replica Filesystem** is a mechanism that keeps a full copy of a user’s file metadata on the client and regularly syncs updates from the server. This feature allows:
 
-* Fast filesystem operations for most APIs (e.g., `stat`, `readdir`, `rmdir`, `rename`, etc.)
-* Reliable operation even on unstable or unavailable networks
-* Reduced network, disk, and database I/O on the server
+* Rapid file system operations for read-only APIs such as `stat`, `readdir`, and `search`.
+* Lower network I/O along with reduced database and CPU load on the server.
 
 ## Motivation
 
-The filesystem is the backbone of Puter, and its performance in `puter-js` and the GUI web client has been a long-standing bottleneck. Users often face delays of several seconds when opening folders or performing other operations. Currently, the database contains more than 20 million filesystem entries, and the latency will only increase as the number of files grows. To tackle this issue, we propose maintaining a **full replica** of the filesystem rooted at the user’s home directory on the client (e.g., for user Tim, all filesystem nodes under `/Tim` are stored locally). This allows users to operate on the filesystem instantly without waiting for a server response, while only the differences are synchronized between the client and server.
+The *puter filesystem* is a critical component of Puter, it provides a POSIX-like filesystem interface to `puter-js` and powers the filesystem operations in the GUI web client. APIs provided by the filesystem include:
+
+- Read-only APIs: `stat`, `readdir`, `search`.
+- Write APIs: `mkdir`, `write`, `copy`, `move`, `rename`, `delete`, etc.
+
+Currently, all of these operations are handled through the synchronous HTTP API and suffer from latency issues caused by network round trips and database index contention. For example, when a user opens a folder in the GUI web client, the request will go all the way to database to find what's inside the folder. There are 20 million filesystem entries in the database and the latency will keep increasing as the number of files grows.
+
+To tackle this issue, we propose maintaining a **full replica** of the filesystem rooted at the user’s home directory on the client (e.g., for user Tim, all filesystem nodes under `/Tim` are stored locally). This allows users to perform read-only operations on the client replica without waiting for a server response. Updates to the filesystem will be fetched from the server periodically.
+
+![](assets/20250910_113939_puter-client_replica.drawio.svg)
 
 ## Proposal
 
@@ -257,13 +264,11 @@ We will forget about the router for now. I.e., we don't care about who is respon
 
 There is another issue: now there are 2 write paths, one if from replica sync and another is from existing `/write` api.
 
-
 #### Storage
 
 Here we propose following approaches in `<runner> + <storage>` format
 
 **Tree Maintainance Process + Redis**
-
 
 In intialization phase, the "tree maintainance process" load all fs nodes from database and generate the merkel tree, then store the tree in redis where key is the full path of a node and value is `[merkle_hash, uuid, last_updated]`.
 
