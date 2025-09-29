@@ -26,6 +26,8 @@ class ReplicaManager {
         this.isConnected = false;
         this.isInitialized = false;
         this.username = null;
+
+        this.available = false;
     }
 
     /**
@@ -39,14 +41,14 @@ class ReplicaManager {
         this.authToken = context.authToken;
         this.APIOrigin = context.APIOrigin;
         this.appID = context.appID;
-        
+
         // Fetch username from whoami endpoint if not provided in context
         if (!context.username) {
             this.username = await this.fetchUsername();
         } else {
             this.username = context.username;
         }
-        
+
         this.isInitialized = true;
 
         this.connect();
@@ -62,16 +64,12 @@ class ReplicaManager {
                     Authorization: `Bearer ${this.authToken}`
                 }
             });
-            
-            if (!resp.ok) {
-                throw new Error(`HTTP error! status: ${resp.status}`);
-            }
-            
-            const whoamiResponse = await resp.json();
-            return whoamiResponse.username;
+
+            const result = await resp.json();
+            return result.username;
         } catch (error) {
             console.error('Replica Manager: Failed to fetch username from whoami endpoint:', error);
-            return null;
+            throw error;
         }
     }
 
@@ -101,7 +99,7 @@ class ReplicaManager {
             if (puter.debugMode) {
                 console.log('Replica Manager: Connected', this.socket.id);
             }
-            
+
             // Automatically fetch user's root path on connection
             this.fetchUserRoot();
         });
@@ -118,7 +116,7 @@ class ReplicaManager {
             if (puter.debugMode) {
                 console.log('Replica Manager: Reconnected', this.socket.id);
             }
-            
+
             // Refetch user's root path on reconnection
             this.fetchUserRoot();
         });
@@ -147,7 +145,6 @@ class ReplicaManager {
             }
         });
 
-        // Handle replica fetch responses
         this.socket.on('replica/fetch/success', (data) => {
             this.handleReplicaSuccess(data);
         });
@@ -167,9 +164,8 @@ class ReplicaManager {
         }
 
         const userRootPath = `/${this.username}`;
-        console.log('Replica Manager: Fetching user root:', userRootPath);
-        
-        this.socket.emit('replica/fetch', { 
+
+        this.socket.emit('replica/fetch', {
             path: userRootPath,
             requestId: 'user_root' // Special request ID for user root
         });
@@ -180,15 +176,15 @@ class ReplicaManager {
      */
     handleReplicaSuccess(data) {
         console.log('Replica Manager: Received replica data:', data);
-        
+
         // Initialize the FSTree
         window.FSTree = new FSTree(data.data);
-        window.replica_available = true;
-        
+        this.available = true;
+
         // Emit custom event for other parts of the app
         if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('replica:ready', { 
-                detail: { data: data.data } 
+            window.dispatchEvent(new CustomEvent('replica:ready', {
+                detail: { data: data.data }
             }));
         }
     }
@@ -198,11 +194,11 @@ class ReplicaManager {
      */
     handleReplicaError(data) {
         console.error('Replica Manager: Failed to fetch replica:', data);
-        
+
         // Emit custom event for error handling
         if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('replica:error', { 
-                detail: { error: data } 
+            window.dispatchEvent(new CustomEvent('replica:error', {
+                detail: { error: data }
             }));
         }
     }
@@ -233,6 +229,6 @@ class ReplicaManager {
 }
 
 // Create singleton instance
-const replicaManager = new ReplicaManager();
+const replica = new ReplicaManager();
 
-export default replicaManager;
+export default replica;

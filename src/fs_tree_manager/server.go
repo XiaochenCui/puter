@@ -25,7 +25,7 @@ type server struct {
 }
 
 // calculateMerkleHash calculates the MerkleHash for a node based on its attributes and children hashes
-func calculateMerkleHash(node *pb.MerkleTree) string {
+func calculateMerkleHash(node *pb.MerkleNode, childrenHashes []string) string {
 	// Create a hash object
 	hasher := xxhash.New()
 
@@ -38,14 +38,7 @@ func calculateMerkleHash(node *pb.MerkleTree) string {
 		}
 	}
 
-	// Add name to the hash
-	hasher.WriteString(node.Name)
-
 	// Add children hashes in sorted order for consistency
-	childrenHashes := make([]string, len(node.Children))
-	for i, child := range node.Children {
-		childrenHashes[i] = child.MerkleHash
-	}
 	sort.Strings(childrenHashes)
 
 	for _, childHash := range childrenHashes {
@@ -56,15 +49,51 @@ func calculateMerkleHash(node *pb.MerkleTree) string {
 	return fmt.Sprintf("%x", hasher.Sum64())
 }
 
-// calculateTreeMerkleHashes recursively calculates MerkleHash for all nodes in the tree (bottom-up)
-func calculateTreeMerkleHashes(node *pb.MerkleTree) {
-	// First, calculate hashes for all children
-	for _, child := range node.Children {
-		calculateTreeMerkleHashes(child)
+// calculateTreeMerkleHashes calculates MerkleHash for all nodes in the tree (bottom-up)
+func calculateTreeMerkleHashes(tree *pb.MerkleTree) {
+	// First pass: calculate hashes for leaf nodes (nodes with no children)
+	for _, node := range tree.Nodes {
+		if len(node.ChildrenIds) == 0 {
+			node.MerkleHash = calculateMerkleHash(node, []string{})
+		}
 	}
 
-	// Then calculate hash for this node (now that children have their hashes)
-	node.MerkleHash = calculateMerkleHash(node)
+	// Second pass: calculate hashes for parent nodes (bottom-up)
+	// We need to process nodes in order from leaves to root
+	processed := make(map[string]bool)
+
+	for {
+		allProcessed := true
+		for _, node := range tree.Nodes {
+			if processed[node.Id] {
+				continue
+			}
+
+			// Check if all children have been processed
+			allChildrenProcessed := true
+			childrenHashes := make([]string, 0, len(node.ChildrenIds))
+			for _, childID := range node.ChildrenIds {
+				if child, exists := tree.Nodes[childID]; exists {
+					if !processed[childID] {
+						allChildrenProcessed = false
+						break
+					}
+					childrenHashes = append(childrenHashes, child.MerkleHash)
+				}
+			}
+
+			if allChildrenProcessed {
+				node.MerkleHash = calculateMerkleHash(node, childrenHashes)
+				processed[node.Id] = true
+			} else {
+				allProcessed = false
+			}
+		}
+
+		if allProcessed {
+			break
+		}
+	}
 }
 
 // FetchReplica implements the FSTreeManager service
@@ -82,7 +111,7 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 		return nil, err
 	}
 
-	log.Printf("Sending response with MerkleTree with name: %s", tree.Name)
+	log.Printf("Sending response with MerkleTree with root_id: %s", tree.RootId)
 
 	return &pb.FetchReplicaResponse{
 		Tree: tree,
@@ -103,7 +132,7 @@ func (s *server) NewDirectory(ctx context.Context, req *pb.FSEntry) (*emptypb.Em
 	return &emptypb.Empty{}, nil
 }
 
-// TODO: compatible with path search:
+// TODO: compatible with the path search:
 // https://github.com/HeyPuter/puter/blob/0c60ebd1d066030349fe33bcee1d70de5b81110c/src/backend/src/boot/RuntimeEnvironment.js#L133-L162
 //
 // const sqliteDBPath = "../../volatile/runtime/puter-database.sqlite"
@@ -222,12 +251,12 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 	defer rows.Close()
 
 	// Create a map to store all nodes by UUID for efficient lookup
-	nodeMap := make(map[string]*pb.MerkleTree)
+	nodes := make(map[string]*pb.MerkleNode)
 	// Map to store parent-child relationships
 	parentChildMap := make(map[string][]string)
 
 	// Find the actual user root directory (should be exactly "/username")
-	var rootTree *pb.MerkleTree
+	var rootID string
 
 	// Process all entries
 	for rows.Next() {
@@ -268,49 +297,50 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 			continue
 		}
 
-		// Create the node node (MerkleHash will be calculated later)
-		node := &pb.MerkleTree{
-			Name:       name,
+		// Create the MerkleNode (MerkleHash will be calculated later)
+		node := &pb.MerkleNode{
+			Id:         uuid,
 			MerkleHash: "", // Will be calculated after children are set
+			ParentId:   parentUIDStr,
 			FsEntry:    &pb.FSEntry{Metadata: metadataStruct},
-			Children:   []*pb.MerkleTree{},
 		}
 
 		// Store the node in the map
-		nodeMap[uuid] = node
+		nodes[uuid] = node
 
 		// Track parent-child relationships
 		if parentUID.Valid {
 			parentChildMap[parentUID.String] = append(parentChildMap[parentUID.String], uuid)
 		}
 
-		// Check if this is the root directory by looking at the path in metadata
+		// Check if this is the root directory by looking at the path
 		if path == rootPath {
-			rootTree = node
-			continue
+			rootID = uuid
 		}
 	}
 
-	// Build the tree structure by linking children to parents
+	// Build the tree structure by setting children_ids for each node
 	for parentUUID, childUUIDs := range parentChildMap {
-		if parent, exists := nodeMap[parentUUID]; exists {
-			for _, childUUID := range childUUIDs {
-				if child, exists := nodeMap[childUUID]; exists {
-					parent.Children = append(parent.Children, child)
-				}
-			}
+		if parent, exists := nodes[parentUUID]; exists {
+			parent.ChildrenIds = childUUIDs
 		}
 	}
 
 	// If no root directory found, return error
-	if rootTree == nil {
+	if rootID == "" {
 		return nil, fmt.Errorf("user root directory not found: %s", rootPath)
 	}
 
-	// Calculate MerkleHash for all nodes in the tree (bottom-up)
-	calculateTreeMerkleHashes(rootTree)
+	// Create the MerkleTree with the nodes map
+	tree := &pb.MerkleTree{
+		RootId: rootID,
+		Nodes:  nodes,
+	}
 
-	return rootTree, nil
+	// Calculate MerkleHash for all nodes in the tree (bottom-up)
+	calculateTreeMerkleHashes(tree)
+
+	return tree, nil
 }
 
 func main() {

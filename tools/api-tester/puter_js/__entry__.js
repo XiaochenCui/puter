@@ -21,5 +21,6 @@ module.exports = async registry => {
   registry.t.puter = puter;
 
   console.log('__entry__.js');
-  require('./auth/__entry__.js')(registry);
+  // require('./auth/__entry__.js')(registry);
+  require('./filesystem/__entry__.js')(registry);
 };

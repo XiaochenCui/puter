@@ -26,9 +26,29 @@ To tackle this issue, we propose maintaining a **full replica** of the filesyste
 
 ### Data Structure
 
-**Merkel Tree** can be used to check the equality of two file system trees instantly and synchronize two trees by only sending the differences.
+**Merkle Tree** is used to quickly compare two file system trees and synchronize them by sending only the differences.
+
+In our implementation, we use two key ideas:
+
+1. **Bidirectional Nodes**
+   Each node stores references to both its parent and children.
+
+   * **Top-down traversal**: used for tree comparison and path lookup.
+   * **Bottom-up traversal**: used to recalculate hashes when a node is updated.
+
+2. **Heap (Index by UUID)**
+   We maintain a heap-like structure (UUID → node map) to:
+
+   * Enable fast node lookups by UUID.
+   * Prevent duplicate nodes in the tree.
 
 > A Merkle tree is a hash tree where leaves are hashes of the values of individual nodes. Parent nodes higher in the tree are hashes of their respective children. The principal advantage of Merkle tree is that each branch of the tree can be checked independently without requiring nodes to download the entire tree or the entire data set. Moreover, Merkle trees help in reducing the amount of data that needs to be transferred while checking for inconsistencies among replicas. For instance, if the hash values of the root of two trees are equal, then the values of the leaf nodes in the tree are equal and the nodes require no synchronization. If not, it implies that the values of some replicas are different. In such cases, the nodes may exchange the hash values of children and the process continues until it reaches the leaves of the trees, at which point the hosts can identify the nodes that are “out of sync”.
+
+### Client-Replica Initialization
+
+Both initialization and synchronization are done via websocket to save network traffic.
+
+### Client-Replica Synchronization
 
 ### Client-side Replica
 
@@ -316,6 +336,16 @@ Use consistent hashing (by userid) to partition the FS-Tree Manager.
 TODO: Add more details on how to add/remove instances.
 
 TODO: We may need a GUI control panel for partition management.
+
+## Fault Tolerance
+
+TODO: 
+
+scenario 1: FS-Tree Manager is unavailable on all APIs.
+
+scenario 2: FS-Tree Manager is only unavailable on fetch/sync APIs.
+
+scenario 3: FS-Tree Manager is only unavailable on fs update APIs.
 
 ## Metrics
 

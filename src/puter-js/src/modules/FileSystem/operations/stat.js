@@ -18,7 +18,7 @@ const stat = async function (...args) {
         };
     }
 
-    if (window.replica_available) {
+    if (puter.fs.replica.available) {
         return new Promise(async (resolve, reject) => {
             try {
                 const result = await window.FSTree.stat(options);

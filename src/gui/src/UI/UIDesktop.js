@@ -760,7 +760,7 @@ async function UIDesktop(options) {
         const statusElement = document.getElementById('replica-status-value');
         const toggleElement = document.getElementById('replica-status-toggle');
         if (statusElement && toggleElement) {
-            const isAvailable = window.replica_available === true;
+            const isAvailable = puter.fs.replica.available === true;
             statusElement.textContent = isAvailable.toString();
             statusElement.className = `replica-status-value ${isAvailable}`;
             toggleElement.checked = isAvailable;
@@ -775,18 +775,17 @@ async function UIDesktop(options) {
             const newValue = toggleElement.checked;
             statusElement.textContent = newValue.toString();
             statusElement.className = `replica-status-value ${newValue}`;
-            window.replica_available = newValue;
+            puter.fs.replica.available = newValue;
         }
     };
 
-    // Initialize the widget with current value
+    // Initialize widget and start polling
     setTimeout(() => {
-        window.updateReplicaStatusWidget();
-        // Add event listener for toggle
         const toggleElement = document.getElementById('replica-status-toggle');
         if (toggleElement) {
             toggleElement.addEventListener('change', window.handleReplicaToggle);
         }
+        setInterval(window.updateReplicaStatusWidget, 100);
     }, 100);
 
     // Set desktop height based on taskbar height

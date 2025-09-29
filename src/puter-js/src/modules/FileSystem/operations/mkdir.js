@@ -1,6 +1,6 @@
+import path from "../../../lib/path.js";
 import * as utils from '../../../lib/utils.js';
 import getAbsolutePathForApp from '../utils/getAbsolutePathForApp.js';
-import path from "../../../lib/path.js"
 
 const mkdir = function (...args) {
     let options = {};
@@ -27,10 +27,10 @@ const mkdir = function (...args) {
     return new Promise(async (resolve, reject) => {
         // If auth token is not provided and we are in the web environment, 
         // try to authenticate with Puter
-        if(!puter.authToken && puter.env === 'web'){
-            try{
+        if (!puter.authToken && puter.env === 'web') {
+            try {
                 await puter.ui.authenticateWithPuter();
-            }catch(e){
+            } catch (e) {
                 // if authentication fails, throw an error
                 reject('Authentication failed.');
             }
@@ -39,14 +39,27 @@ const mkdir = function (...args) {
         // create xhr object
         const xhr = utils.initXhr('/mkdir', this.APIOrigin, this.authToken);
 
+        // inject the client-replica update hook to the success callback
+        const originalSuccess = options.success;
+        const wrappedSuccess = (...args) => {
+            if (originalSuccess) {
+                originalSuccess(...args);
+            }
+
+            const fs_entry = args[0];
+            if (puter.fs.replica.available) {
+                window.FSTree.newDirectory(fs_entry);
+            }
+        };
+
         // set up event handlers for load and error events
-        utils.setupXhrEventHandlers(xhr, options.success, options.error, resolve, reject);
+        utils.setupXhrEventHandlers(xhr, wrappedSuccess, options.error, resolve, reject);
 
         options.path = getAbsolutePathForApp(options.path);
 
         xhr.send(JSON.stringify({
             parent: path.dirname(options.path),
-            path:	path.basename(options.path), 
+            path: path.basename(options.path),
             overwrite: options.overwrite ?? false,
             dedupe_name: (options.rename || options.dedupeName) ?? false,
             shortcut_to: options.shortcutTo,

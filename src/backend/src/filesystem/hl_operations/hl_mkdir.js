@@ -31,6 +31,8 @@ const { HLFilesystemOperation } = require('./definitions');
 const { is_valid_path } = require('../validation');
 const { HLRemove } = require('./hl_remove');
 const { LLMkdir } = require('../ll_operations/ll_mkdir');
+const { sendFsUpdate } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
+
 
 class MkTree extends HLFilesystemOperation {
     static DESCRIPTION = `
@@ -401,6 +403,12 @@ class HLMkdir extends HLFilesystemOperation {
             response.parent_dirs_created.push(await node.getSafeEntry());
         }
         response.requested_path = values.path;
+
+        // emit fs update to fs_tree_manager
+        const fs_update_event = {
+            metadata: response,
+        };
+        sendFsUpdate(fs_update_event);
 
         return response;
     }

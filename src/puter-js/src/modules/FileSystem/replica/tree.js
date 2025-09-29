@@ -24,7 +24,87 @@ class FSTree {
             throw new Error('FSTree requires valid data to initialize');
         }
         this.tree = data;
-        this.root = "/" + data.name;
+        this.nodes = data.nodes;
+        this.rootId = data.root_id;
+        
+        // Get the root node to determine the root path
+        const rootNode = this.nodes[this.rootId];
+        if (rootNode && rootNode.fs_entry) {
+            this.root = rootNode.fs_entry.path || "/";
+        } else {
+            this.root = "/";
+        }
+    }
+
+    /**
+     * Calculate Merkle hash for a node based on its metadata and children hashes
+     * This matches the exact logic from server.go
+     * @param {Object} node - The node to calculate hash for
+     * @param {Array} childrenHashes - Array of child node hashes
+     * @returns {string} - Hex string representation of the hash
+     */
+    calculateMerkleHash(node, childrenHashes = []) {
+        // Create a hash object using our simple xxhash implementation
+        let hasher = new Uint8Array(0);
+        
+        // Add self attributes to the hash (metadata as JSON)
+        // This matches: hasher.Write(metadataBytes) in Go
+        if (node.fs_entry) {
+            const metadataBytes = new TextEncoder().encode(JSON.stringify(node.fs_entry));
+            const combined = new Uint8Array(hasher.length + metadataBytes.length);
+            combined.set(hasher);
+            combined.set(metadataBytes, hasher.length);
+            hasher = combined;
+        }
+        
+        // Add children hashes in sorted order for consistency
+        // This matches: sort.Strings(childrenHashes) and hasher.WriteString(childHash) in Go
+        const sortedChildrenHashes = [...childrenHashes].sort();
+        for (const childHash of sortedChildrenHashes) {
+            const childBytes = new TextEncoder().encode(childHash);
+            const combined = new Uint8Array(hasher.length + childBytes.length);
+            combined.set(hasher);
+            combined.set(childBytes, hasher.length);
+            hasher = combined;
+        }
+    }
+
+    /**
+     * Recalculate Merkle hashes for all ancestors of a given node
+     * @param {string} nodeId - The ID of the node whose ancestors need recalculation
+     */
+    recalculateAncestorHashes(nodeId) {
+        const node = this.nodes[nodeId];
+        if (!node) {
+            return;
+        }
+
+        // Start from the current node and work up to the root
+        let currentNodeId = nodeId;
+        
+        while (currentNodeId) {
+            const currentNode = this.nodes[currentNodeId];
+            if (!currentNode) {
+                break;
+            }
+
+            // Get all children hashes
+            const childrenHashes = [];
+            if (currentNode.children_ids) {
+                for (const childId of currentNode.children_ids) {
+                    const childNode = this.nodes[childId];
+                    if (childNode && childNode.merkle_hash) {
+                        childrenHashes.push(childNode.merkle_hash);
+                    }
+                }
+            }
+
+            // Calculate new hash for current node
+            currentNode.merkle_hash = this.calculateMerkleHash(currentNode, childrenHashes);
+
+            // Move to parent
+            currentNodeId = currentNode.parent_id;
+        }
     }
 
     /**
@@ -37,21 +117,27 @@ class FSTree {
         path = path.replace(this.root, '');
 
         const parts = path.split('/').filter(part => part !== '');
-        let current = this.tree;
+        let currentId = this.rootId;
 
         for (const part of parts) {
-            if (!current.children) {
+            const currentNode = this.nodes[currentId];
+            if (!currentNode || !currentNode.children_ids) {
                 return null;
             }
             
-            const found = current.children.find(child => child.name === part);
-            if (!found) {
+            // Find child with matching name
+            const foundId = currentNode.children_ids.find(childId => {
+                const childNode = this.nodes[childId];
+                return childNode && childNode.fs_entry && childNode.fs_entry.name === part;
+            });
+            
+            if (!foundId) {
                 return null;
             }
-            current = found;
+            currentId = foundId;
         }
 
-        return current;
+        return this.nodes[currentId];
     }
 
     /**
@@ -60,26 +146,8 @@ class FSTree {
      * @returns {Object|null} - Node object or null if not found
      */
     findNodeByUUID(uid) {
-        const searchInNode = (node) => {
-            // Check if current node has the UUID
-            if (node.metadata?.uid === uid) {
-                return node;
-            }
-
-            // Search in children recursively
-            if (node.children) {
-                for (const child of node.children) {
-                    const found = searchInNode(child);
-                    if (found) {
-                        return found;
-                    }
-                }
-            }
-
-            return null;
-        };
-
-        return searchInNode(this.tree);
+        // Direct lookup in nodes map
+        return this.nodes[uid] || null;
     }
 
     /**
@@ -88,7 +156,7 @@ class FSTree {
      * @param {Object} options - Options object
      * @param {string} [options.path] - Path to read directory for
      * @param {string} [options.uid] - UUID to read directory for
-     * @returns {Array} - Array of child nodes
+     * @returns {Array} - Array of child fs_entry objects
      */
     readdir(options) {
         const path = options.path;
@@ -107,19 +175,24 @@ class FSTree {
             throw new Error(`Path not found: ${path}`);
         }
 
-        if (!node.metadata?.is_dir) {
+        if (!node.fs_entry?.is_dir) {
             throw new Error(`Not a directory: ${path}`);
         }
 
-        return node.children.map(child => child.metadata);
+        // Get children by their IDs
+        const childrenIds = node.children_ids || [];
+        return childrenIds
+            .map(childId => this.nodes[childId])
+            .filter(childNode => childNode && childNode.fs_entry)
+            .map(childNode => childNode.fs_entry);
     }
 
     /**
-     * Get node metadata
+     * Get node fs_entry
      * @param {Object} options - Options object
-     * @param {string} [options.path] - Path to get metadata for
-     * @param {string} [options.uid] - UUID to get metadata for
-     * @returns {Object|null} - Metadata object or null if not found
+     * @param {string} [options.path] - Path to get fs_entry for
+     * @param {string} [options.uid] - UUID to get fs_entry for
+     * @returns {Object|null} - fs_entry object or null if not found
      */
     stat(options) {
         const path = options.path;
@@ -134,9 +207,52 @@ class FSTree {
             throw new Error('Either path or uid must be provided');
         }
 
-        return node?.metadata;
+        return node?.fs_entry;
     }
 
+    /**
+     * Add a new directory to the tree
+     * @param {Object} fs_entry - The fs_entry object of the new directory
+     */
+    newDirectory(fs_entry) {
+        if (!fs_entry || !fs_entry.uid) {
+            throw new Error('Invalid fs_entry: must have uid');
+        }
+
+        if (!fs_entry.is_dir) {
+            throw new Error('fs_entry must be a directory');
+        }
+
+        // Find the parent directory by uid
+        const parentNode = this.findNodeByUUID(fs_entry.parent_uid);
+        if (!parentNode) {
+            throw new Error(`Parent directory not found: ${fs_entry.parent_uid}`);
+        }
+
+        // Create new directory node
+        const newNode = {
+            id: fs_entry.uid,
+            merkle_hash: '', // Will be calculated below
+            parent_id: fs_entry.parent_uid,
+            fs_entry: fs_entry,
+            children_ids: []
+        };
+
+        // Add to nodes map
+        this.nodes[fs_entry.uid] = newNode;
+
+        // Add to parent's children_ids
+        if (!parentNode.children_ids) {
+            parentNode.children_ids = [];
+        }
+        parentNode.children_ids.push(fs_entry.uid);
+
+        // Calculate Merkle hash for the new directory (empty children)
+        newNode.merkle_hash = this.calculateMerkleHash(newNode, []);
+
+        // Recalculate Merkle hashes for all ancestors
+        this.recalculateAncestorHashes(fs_entry.uid);
+    }
 }
 
 export default FSTree;

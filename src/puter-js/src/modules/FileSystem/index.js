@@ -21,7 +21,7 @@ import deleteFSEntry from "./operations/deleteFSEntry.js";
 import getReadURL from './operations/getReadUrl.js';
 
 // client-replica
-import replicaManager from "./replica/manager.js";
+import replica from "./replica/manager.js";
 
 export class PuterJSFileSystemModule extends AdvancedBase {
 
@@ -41,6 +41,9 @@ export class PuterJSFileSystemModule extends AdvancedBase {
     getReadURL = getReadURL;
     readdir = readdir;
     stat = stat;
+
+    // client-replica
+    replica = replica;
 
     FSItem = FSItem
 
@@ -74,7 +77,7 @@ export class PuterJSFileSystemModule extends AdvancedBase {
         this.initializeSocket();
 
         // Initialize replica manager
-        replicaManager.initialize({
+        replica.initialize({
             authToken: this.authToken,
             APIOrigin: this.APIOrigin,
             appID: this.appID,
@@ -184,7 +187,7 @@ export class PuterJSFileSystemModule extends AdvancedBase {
         // reset socket
         this.initializeSocket();
         // reinitialize replica manager
-        replicaManager.initialize({
+        replica.initialize({
             authToken: this.authToken,
             APIOrigin: this.APIOrigin,
             appID: this.appID,
@@ -204,7 +207,7 @@ export class PuterJSFileSystemModule extends AdvancedBase {
         // reset socket
         this.initializeSocket();
         // reinitialize replica manager
-        replicaManager.initialize({
+        replica.initialize({
             authToken: this.authToken,
             APIOrigin: this.APIOrigin,
             appID: this.appID,

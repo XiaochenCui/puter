@@ -518,7 +518,6 @@ window.update_auth_data = async (auth_token, user)=>{
     window.desktop_path = '/' + window.user.username + '/Desktop';
     window.home_path = '/' + window.user.username;
     window.public_path =  '/' + window.user.username + '/Public';
-    window.replica_available = false;
 
     if(window.user !== null && !window.user.is_temp){
         $('.user-options-login-btn, .user-options-create-account-btn').hide();
@@ -529,9 +528,6 @@ window.update_auth_data = async (auth_token, user)=>{
     window.available_templates()
     // Search and store user templates
     window.file_templates = await window.available_templates()
-
-    // Fetch replica for user's home directory after login
-    puter.fs.replica.fetch(window.home_path);
 }
 
 window.mutate_user_preferences = function(user_preferences_delta) {

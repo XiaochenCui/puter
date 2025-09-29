@@ -18,7 +18,7 @@ const readdir = async function (...args) {
         };
     }
 
-    if (window.replica_available) {
+    if (puter.fs.replica.available) {
         const homePath = window.FSTree.root;
         if (options.path && options.path.startsWith(homePath)) {
             return new Promise(async (resolve, reject) => {
