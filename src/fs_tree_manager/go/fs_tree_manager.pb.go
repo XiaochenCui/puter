@@ -9,6 +9,7 @@ package fs_tree_manager
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
@@ -113,10 +114,10 @@ func (x *FetchReplicaResponse) GetTree() *MerkleTree {
 type MerkleTree struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the file/directory, e.g. "Notebook.md", "New Folder", etc.
-	Name          string           `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	MerkleHash    string           `protobuf:"bytes,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
-	Metadata      *structpb.Struct `protobuf:"bytes,3,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Children      []*MerkleTree    `protobuf:"bytes,4,rep,name=children,proto3" json:"children,omitempty"`
+	Name          string        `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	MerkleHash    string        `protobuf:"bytes,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
+	FsEntry       *FSEntry      `protobuf:"bytes,3,opt,name=fs_entry,json=fsEntry,proto3" json:"fs_entry,omitempty"`
+	Children      []*MerkleTree `protobuf:"bytes,4,rep,name=children,proto3" json:"children,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -165,9 +166,9 @@ func (x *MerkleTree) GetMerkleHash() string {
 	return ""
 }
 
-func (x *MerkleTree) GetMetadata() *structpb.Struct {
+func (x *MerkleTree) GetFsEntry() *FSEntry {
 	if x != nil {
-		return x.Metadata
+		return x.FsEntry
 	}
 	return nil
 }
@@ -179,11 +180,55 @@ func (x *MerkleTree) GetChildren() []*MerkleTree {
 	return nil
 }
 
+type FSEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Metadata      *structpb.Struct       `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FSEntry) Reset() {
+	*x = FSEntry{}
+	mi := &file_fs_tree_manager_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FSEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FSEntry) ProtoMessage() {}
+
+func (x *FSEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_fs_tree_manager_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FSEntry.ProtoReflect.Descriptor instead.
+func (*FSEntry) Descriptor() ([]byte, []int) {
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FSEntry) GetMetadata() *structpb.Struct {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 var File_fs_tree_manager_proto protoreflect.FileDescriptor
 
 const file_fs_tree_manager_proto_rawDesc = "" +
 	"\n" +
-	"\x15fs_tree_manager.proto\x12\x0ffs_tree_manager\x1a\x1cgoogle/protobuf/struct.proto\"2\n" +
+	"\x15fs_tree_manager.proto\x12\x0ffs_tree_manager\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1bgoogle/protobuf/empty.proto\"2\n" +
 	"\x13FetchReplicaRequest\x12\x1b\n" +
 	"\tuser_name\x18\x01 \x01(\tR\buserName\"G\n" +
 	"\x14FetchReplicaResponse\x12/\n" +
@@ -193,10 +238,13 @@ const file_fs_tree_manager_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
 	"\vmerkle_hash\x18\x02 \x01(\tR\n" +
 	"merkleHash\x123\n" +
-	"\bmetadata\x18\x03 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x127\n" +
-	"\bchildren\x18\x04 \x03(\v2\x1b.fs_tree_manager.MerkleTreeR\bchildren2l\n" +
+	"\bfs_entry\x18\x03 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\x127\n" +
+	"\bchildren\x18\x04 \x03(\v2\x1b.fs_tree_manager.MerkleTreeR\bchildren\">\n" +
+	"\aFSEntry\x123\n" +
+	"\bmetadata\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bmetadata2\xae\x01\n" +
 	"\rFSTreeManager\x12[\n" +
-	"\fFetchReplica\x12$.fs_tree_manager.FetchReplicaRequest\x1a%.fs_tree_manager.FetchReplicaResponseB\"Z github.com/puter/fs_tree_managerb\x06proto3"
+	"\fFetchReplica\x12$.fs_tree_manager.FetchReplicaRequest\x1a%.fs_tree_manager.FetchReplicaResponse\x12@\n" +
+	"\fNewDirectory\x12\x18.fs_tree_manager.FSEntry\x1a\x16.google.protobuf.EmptyB\"Z github.com/puter/fs_tree_managerb\x06proto3"
 
 var (
 	file_fs_tree_manager_proto_rawDescOnce sync.Once
@@ -210,24 +258,29 @@ func file_fs_tree_manager_proto_rawDescGZIP() []byte {
 	return file_fs_tree_manager_proto_rawDescData
 }
 
-var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_fs_tree_manager_proto_goTypes = []any{
 	(*FetchReplicaRequest)(nil),  // 0: fs_tree_manager.FetchReplicaRequest
 	(*FetchReplicaResponse)(nil), // 1: fs_tree_manager.FetchReplicaResponse
 	(*MerkleTree)(nil),           // 2: fs_tree_manager.MerkleTree
-	(*structpb.Struct)(nil),      // 3: google.protobuf.Struct
+	(*FSEntry)(nil),              // 3: fs_tree_manager.FSEntry
+	(*structpb.Struct)(nil),      // 4: google.protobuf.Struct
+	(*emptypb.Empty)(nil),        // 5: google.protobuf.Empty
 }
 var file_fs_tree_manager_proto_depIdxs = []int32{
 	2, // 0: fs_tree_manager.FetchReplicaResponse.tree:type_name -> fs_tree_manager.MerkleTree
-	3, // 1: fs_tree_manager.MerkleTree.metadata:type_name -> google.protobuf.Struct
+	3, // 1: fs_tree_manager.MerkleTree.fs_entry:type_name -> fs_tree_manager.FSEntry
 	2, // 2: fs_tree_manager.MerkleTree.children:type_name -> fs_tree_manager.MerkleTree
-	0, // 3: fs_tree_manager.FSTreeManager.FetchReplica:input_type -> fs_tree_manager.FetchReplicaRequest
-	1, // 4: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.FetchReplicaResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 3: fs_tree_manager.FSEntry.metadata:type_name -> google.protobuf.Struct
+	0, // 4: fs_tree_manager.FSTreeManager.FetchReplica:input_type -> fs_tree_manager.FetchReplicaRequest
+	3, // 5: fs_tree_manager.FSTreeManager.NewDirectory:input_type -> fs_tree_manager.FSEntry
+	1, // 6: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.FetchReplicaResponse
+	5, // 7: fs_tree_manager.FSTreeManager.NewDirectory:output_type -> google.protobuf.Empty
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_fs_tree_manager_proto_init() }
@@ -241,7 +294,7 @@ func file_fs_tree_manager_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fs_tree_manager_proto_rawDesc), len(file_fs_tree_manager_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

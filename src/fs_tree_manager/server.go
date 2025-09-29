@@ -15,6 +15,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	pb "github.com/puter/fs_tree_manager/go"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -30,8 +31,8 @@ func calculateMerkleHash(node *pb.MerkleTree) string {
 
 	// Add self attributes to the hash
 	// We'll hash the metadata as JSON to include all self attributes
-	if node.Metadata != nil {
-		metadataBytes, err := json.Marshal(node.Metadata.AsMap())
+	if node.FsEntry.Metadata != nil {
+		metadataBytes, err := json.Marshal(node.FsEntry.Metadata.AsMap())
 		if err == nil {
 			hasher.Write(metadataBytes)
 		}
@@ -86,6 +87,20 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 	return &pb.FetchReplicaResponse{
 		Tree: tree,
 	}, nil
+}
+
+// NewDirectory implements the FSTreeManager service
+func (s *server) NewDirectory(ctx context.Context, req *pb.FSEntry) (*emptypb.Empty, error) {
+	log.Printf("=== gRPC Request Received ===")
+	log.Printf("Method: NewDirectory")
+	log.Printf("Metadata: %v", req.Metadata)
+	log.Printf("Timestamp: %s", time.Now().Format(time.RFC3339))
+	log.Printf("=============================")
+
+	// TODO: Implement directory creation logic here
+	// For now, just return an empty response
+
+	return &emptypb.Empty{}, nil
 }
 
 // TODO: compatible with path search:
@@ -257,7 +272,7 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 		node := &pb.MerkleTree{
 			Name:       name,
 			MerkleHash: "", // Will be calculated after children are set
-			Metadata:   metadataStruct,
+			FsEntry:    &pb.FSEntry{Metadata: metadataStruct},
 			Children:   []*pb.MerkleTree{},
 		}
 

@@ -21,7 +21,7 @@ import deleteFSEntry from "./operations/deleteFSEntry.js";
 import getReadURL from './operations/getReadUrl.js';
 
 // client-replica
-import replica_fetch from "./replica/fetch.js";
+import replicaManager from "./replica/manager.js";
 
 export class PuterJSFileSystemModule extends AdvancedBase {
 
@@ -41,11 +41,6 @@ export class PuterJSFileSystemModule extends AdvancedBase {
     getReadURL = getReadURL;
     readdir = readdir;
     stat = stat;
-
-    // Replica functionality
-    replica = {
-        fetch: replica_fetch
-    };
 
     FSItem = FSItem
 
@@ -77,6 +72,16 @@ export class PuterJSFileSystemModule extends AdvancedBase {
         this.context = context;
         // Connect socket.
         this.initializeSocket();
+
+        // Initialize replica manager
+        replicaManager.initialize({
+            authToken: this.authToken,
+            APIOrigin: this.APIOrigin,
+            appID: this.appID,
+            username: context.username
+        }).catch(error => {
+            console.error('Failed to initialize replica manager:', error);
+        });
 
         // We need to use `Object.defineProperty` instead of passing
         // `authToken` and `APIOrigin` because they will change.
@@ -178,6 +183,13 @@ export class PuterJSFileSystemModule extends AdvancedBase {
         this.authToken = authToken;
         // reset socket
         this.initializeSocket();
+        // reinitialize replica manager
+        replicaManager.initialize({
+            authToken: this.authToken,
+            APIOrigin: this.APIOrigin,
+            appID: this.appID,
+            username: this.context.username
+        });
     }
 
     /**
@@ -191,5 +203,12 @@ export class PuterJSFileSystemModule extends AdvancedBase {
         this.APIOrigin = APIOrigin;
         // reset socket
         this.initializeSocket();
+        // reinitialize replica manager
+        replicaManager.initialize({
+            authToken: this.authToken,
+            APIOrigin: this.APIOrigin,
+            appID: this.appID,
+            username: this.context.username
+        });
     }
 }

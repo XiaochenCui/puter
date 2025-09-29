@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -20,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	FSTreeManager_FetchReplica_FullMethodName = "/fs_tree_manager.FSTreeManager/FetchReplica"
+	FSTreeManager_NewDirectory_FullMethodName = "/fs_tree_manager.FSTreeManager/NewDirectory"
 )
 
 // FSTreeManagerClient is the client API for FSTreeManager service.
@@ -27,6 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FSTreeManagerClient interface {
 	FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*FetchReplicaResponse, error)
+	NewDirectory(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type fSTreeManagerClient struct {
@@ -47,11 +50,22 @@ func (c *fSTreeManagerClient) FetchReplica(ctx context.Context, in *FetchReplica
 	return out, nil
 }
 
+func (c *fSTreeManagerClient) NewDirectory(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, FSTreeManager_NewDirectory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FSTreeManagerServer is the server API for FSTreeManager service.
 // All implementations must embed UnimplementedFSTreeManagerServer
 // for forward compatibility.
 type FSTreeManagerServer interface {
 	FetchReplica(context.Context, *FetchReplicaRequest) (*FetchReplicaResponse, error)
+	NewDirectory(context.Context, *FSEntry) (*emptypb.Empty, error)
 	mustEmbedUnimplementedFSTreeManagerServer()
 }
 
@@ -64,6 +78,9 @@ type UnimplementedFSTreeManagerServer struct{}
 
 func (UnimplementedFSTreeManagerServer) FetchReplica(context.Context, *FetchReplicaRequest) (*FetchReplicaResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchReplica not implemented")
+}
+func (UnimplementedFSTreeManagerServer) NewDirectory(context.Context, *FSEntry) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NewDirectory not implemented")
 }
 func (UnimplementedFSTreeManagerServer) mustEmbedUnimplementedFSTreeManagerServer() {}
 func (UnimplementedFSTreeManagerServer) testEmbeddedByValue()                       {}
@@ -104,6 +121,24 @@ func _FSTreeManager_FetchReplica_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FSTreeManager_NewDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FSEntry)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FSTreeManagerServer).NewDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FSTreeManager_NewDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FSTreeManagerServer).NewDirectory(ctx, req.(*FSEntry))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FSTreeManager_ServiceDesc is the grpc.ServiceDesc for FSTreeManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +149,10 @@ var FSTreeManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FetchReplica",
 			Handler:    _FSTreeManager_FetchReplica_Handler,
+		},
+		{
+			MethodName: "NewDirectory",
+			Handler:    _FSTreeManager_NewDirectory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

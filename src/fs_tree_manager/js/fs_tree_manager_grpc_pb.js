@@ -4,6 +4,18 @@
 var grpc = require('@grpc/grpc-js');
 var fs_tree_manager_pb = require('./fs_tree_manager_pb.js');
 var google_protobuf_struct_pb = require('google-protobuf/google/protobuf/struct_pb.js');
+var google_protobuf_empty_pb = require('google-protobuf/google/protobuf/empty_pb.js');
+
+function serialize_fs_tree_manager_FSEntry(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.FSEntry)) {
+    throw new Error('Expected argument of type fs_tree_manager.FSEntry');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_fs_tree_manager_FSEntry(buffer_arg) {
+  return fs_tree_manager_pb.FSEntry.deserializeBinary(new Uint8Array(buffer_arg));
+}
 
 function serialize_fs_tree_manager_FetchReplicaRequest(arg) {
   if (!(arg instanceof fs_tree_manager_pb.FetchReplicaRequest)) {
@@ -27,6 +39,17 @@ function deserialize_fs_tree_manager_FetchReplicaResponse(buffer_arg) {
   return fs_tree_manager_pb.FetchReplicaResponse.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
+function serialize_google_protobuf_Empty(arg) {
+  if (!(arg instanceof google_protobuf_empty_pb.Empty)) {
+    throw new Error('Expected argument of type google.protobuf.Empty');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_google_protobuf_Empty(buffer_arg) {
+  return google_protobuf_empty_pb.Empty.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
 
 var FSTreeManagerService = exports.FSTreeManagerService = {
   fetchReplica: {
@@ -39,6 +62,17 @@ var FSTreeManagerService = exports.FSTreeManagerService = {
     requestDeserialize: deserialize_fs_tree_manager_FetchReplicaRequest,
     responseSerialize: serialize_fs_tree_manager_FetchReplicaResponse,
     responseDeserialize: deserialize_fs_tree_manager_FetchReplicaResponse,
+  },
+  newDirectory: {
+    path: '/fs_tree_manager.FSTreeManager/NewDirectory',
+    requestStream: false,
+    responseStream: false,
+    requestType: fs_tree_manager_pb.FSEntry,
+    responseType: google_protobuf_empty_pb.Empty,
+    requestSerialize: serialize_fs_tree_manager_FSEntry,
+    requestDeserialize: deserialize_fs_tree_manager_FSEntry,
+    responseSerialize: serialize_google_protobuf_Empty,
+    responseDeserialize: deserialize_google_protobuf_Empty,
   },
 };
 

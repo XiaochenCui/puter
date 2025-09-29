@@ -20,11 +20,11 @@
 
 class FSTree {
     constructor(data) {
-        if (!data || !data.data) {
+        if (!data) {
             throw new Error('FSTree requires valid data to initialize');
         }
-        this.tree = data.data;
-        this.root = "/" + data.data.name;
+        this.tree = data;
+        this.root = "/" + data.name;
     }
 
     /**
