@@ -456,7 +456,7 @@ proto.fs_tree_manager.MerkleNode.prototype.toObject = function(opt_includeInstan
 proto.fs_tree_manager.MerkleNode.toObject = function(includeInstance, msg) {
   var f, obj = {
     id: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    merkleHash: jspb.Message.getFieldWithDefault(msg, 2, ""),
+    merkleHash: jspb.Message.getFieldWithDefault(msg, 2, 0),
     childrenIdsList: (f = jspb.Message.getRepeatedField(msg, 3)) == null ? undefined : f,
     parentId: jspb.Message.getFieldWithDefault(msg, 4, ""),
     fsEntry: (f = msg.getFsEntry()) && proto.fs_tree_manager.FSEntry.toObject(includeInstance, f)
@@ -501,7 +501,7 @@ proto.fs_tree_manager.MerkleNode.deserializeBinaryFromReader = function(msg, rea
       msg.setId(value);
       break;
     case 2:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {number} */ (reader.readUint64());
       msg.setMerkleHash(value);
       break;
     case 3:
@@ -554,8 +554,8 @@ proto.fs_tree_manager.MerkleNode.serializeBinaryToWriter = function(message, wri
     );
   }
   f = message.getMerkleHash();
-  if (f.length > 0) {
-    writer.writeString(
+  if (f !== 0) {
+    writer.writeUint64(
       2,
       f
     );
@@ -604,20 +604,20 @@ proto.fs_tree_manager.MerkleNode.prototype.setId = function(value) {
 
 
 /**
- * optional string merkle_hash = 2;
- * @return {string}
+ * optional uint64 merkle_hash = 2;
+ * @return {number}
  */
 proto.fs_tree_manager.MerkleNode.prototype.getMerkleHash = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.fs_tree_manager.MerkleNode} returns this
  */
 proto.fs_tree_manager.MerkleNode.prototype.setMerkleHash = function(value) {
-  return jspb.Message.setProto3StringField(this, 2, value);
+  return jspb.Message.setProto3IntField(this, 2, value);
 };
 
 

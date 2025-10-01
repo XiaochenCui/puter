@@ -116,7 +116,7 @@ type MerkleNode struct {
 	// We use the stable uuid from fs_entry so pointers to it stay valid when this
 	// node is updated.
 	Id            string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MerkleHash    string   `protobuf:"bytes,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
+	MerkleHash    uint64   `protobuf:"varint,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
 	ChildrenIds   []string `protobuf:"bytes,3,rep,name=children_ids,json=childrenIds,proto3" json:"children_ids,omitempty"`
 	ParentId      string   `protobuf:"bytes,4,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
 	FsEntry       *FSEntry `protobuf:"bytes,5,opt,name=fs_entry,json=fsEntry,proto3" json:"fs_entry,omitempty"`
@@ -161,11 +161,11 @@ func (x *MerkleNode) GetId() string {
 	return ""
 }
 
-func (x *MerkleNode) GetMerkleHash() string {
+func (x *MerkleNode) GetMerkleHash() uint64 {
 	if x != nil {
 		return x.MerkleHash
 	}
-	return ""
+	return 0
 }
 
 func (x *MerkleNode) GetChildrenIds() []string {
@@ -298,7 +298,7 @@ const file_fs_tree_manager_proto_rawDesc = "" +
 	"\n" +
 	"MerkleNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
-	"\vmerkle_hash\x18\x02 \x01(\tR\n" +
+	"\vmerkle_hash\x18\x02 \x01(\x04R\n" +
 	"merkleHash\x12!\n" +
 	"\fchildren_ids\x18\x03 \x03(\tR\vchildrenIds\x12\x1b\n" +
 	"\tparent_id\x18\x04 \x01(\tR\bparentId\x123\n" +

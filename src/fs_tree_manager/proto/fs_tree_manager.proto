@@ -23,8 +23,7 @@ message MerkleNode {
   // We use the stable uuid from fs_entry so pointers to it stay valid when this
   // node is updated.
   string id = 1;
-
-  string merkle_hash = 2;
+  uint64 merkle_hash = 2;
   repeated string children_ids = 3;
   string parent_id = 4;
   FSEntry fs_entry = 5;

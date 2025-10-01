@@ -36,7 +36,11 @@
         "webpack-cli": "^5.1.4"
     },
     "dependencies": {
+        "@grpc/grpc-js": "^1.14.0",
         "@heyputer/kv.js": "^0.2.1",
-        "@heyputer/putility": "^1.0.3"
+        "@heyputer/putility": "^1.0.3",
+        "google-protobuf": "^4.0.0",
+        "safe-stable-stringify": "^2.5.0",
+        "xxhash-wasm": "^1.1.0"
     }
 }

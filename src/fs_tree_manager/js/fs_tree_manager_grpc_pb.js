@@ -63,7 +63,9 @@ var FSTreeManagerService = exports.FSTreeManagerService = {
     responseSerialize: serialize_fs_tree_manager_FetchReplicaResponse,
     responseDeserialize: deserialize_fs_tree_manager_FetchReplicaResponse,
   },
-  newDirectory: {
+  // It isn't named "mkdir" since it doesn't handle the various parameters
+// supported by "mkdir."
+newDirectory: {
     path: '/fs_tree_manager.FSTreeManager/NewDirectory',
     requestStream: false,
     responseStream: false,

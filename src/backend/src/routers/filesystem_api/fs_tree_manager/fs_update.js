@@ -18,6 +18,8 @@ const { Struct } = require("google-protobuf/google/protobuf/struct_pb.js");
 // Create gRPC client
 const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.createInsecure());
 
+const stringify = require('safe-stable-stringify');
+
 /**
  * Sends a filesystem update event to the gRPC service
  * @param {Object} fsUpdateEvent - The filesystem update event data
@@ -48,16 +50,27 @@ async function sendFsUpdate(fsUpdateEvent) {
 
 /**
  * Recursively sanitize values so they can be accepted by google.protobuf.Struct.
- * - undefined -> null
+ * - undefined -> dropped
  * - Date -> ISO string
  * - BigInt -> string
  * - Buffer/Uint8Array -> base64 string
  * - Map -> plain object
  * - Set -> array
  * - Other non-JSON types -> string fallback
+ * 
+ * NB: This function MUST mimic the behavior of safe-stable-stringify to ensure consistency.
+ * 
+ * Notes on undefined:
+ * - safe-stable-stringify.stringify has the same behavior on undefined as JSON.stringify (https://github.com/BridgeAR/safe-stable-stringify/blob/bafd93def367f38c4f5ebd598fde7970f331ca9c/test.js#L513)
+ *   - undefined in object is dropped
+ *   - undefined in array is converted to null
+ *   - undefined in map/set is dropped
+ * - Another solution is to use safe-stable-stringify.stringify + parse, it's safer and slower.
  */
 function sanitizeForStruct(value) {
-    if (value === undefined) return null;
+    if (value === undefined) {
+        return null;
+    }
     if (value === null) return null;
 
     const t = typeof value;
@@ -77,17 +90,23 @@ function sanitizeForStruct(value) {
     }
 
     if (value instanceof Map) {
+        // TODO: Mimic the behavior of safe-stable-stringify on "undefined" values.
         return Object.fromEntries(
             Array.from(value.entries()).map(([k, v]) => [k, sanitizeForStruct(v)])
         );
     }
     if (value instanceof Set) {
+        // TODO: Mimic the behavior of safe-stable-stringify on "undefined" values.
         return Array.from(value).map(sanitizeForStruct);
     }
 
     if (value && value.constructor === Object) {
         const out = {};
         for (const [k, v] of Object.entries(value)) {
+            // Mimic the behavior of safe-stable-stringify.
+            if (v === undefined) {
+                continue;
+            }
             out[k] = sanitizeForStruct(v);
         }
         return out;
@@ -108,7 +127,17 @@ function sanitizeForStruct(value) {
  * @returns {FSEntry}
  */
 function buildFsEntry(metadataObj) {
+
+    {
+        const res_1 = sanitizeForStruct(metadataObj);
+        const res_2 = stringify(metadataObj);
+        console.log(`res_1: ${res_1}`);
+        console.log(`res_2: ${res_2}`);
+    }
+
     const sanitized = sanitizeForStruct(metadataObj);
+    // const sanitized = stringify(metadataObj);
+
     const struct = Struct.fromJavaScript(sanitized);
 
     const fsEntry = new FSEntry();

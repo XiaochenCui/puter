@@ -29,6 +29,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FSTreeManagerClient interface {
 	FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*FetchReplicaResponse, error)
+	// It isn't named "mkdir" since it doesn't handle the various parameters
+	// supported by "mkdir."
 	NewDirectory(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
@@ -65,6 +67,8 @@ func (c *fSTreeManagerClient) NewDirectory(ctx context.Context, in *FSEntry, opt
 // for forward compatibility.
 type FSTreeManagerServer interface {
 	FetchReplica(context.Context, *FetchReplicaRequest) (*FetchReplicaResponse, error)
+	// It isn't named "mkdir" since it doesn't handle the various parameters
+	// supported by "mkdir."
 	NewDirectory(context.Context, *FSEntry) (*emptypb.Empty, error)
 	mustEmbedUnimplementedFSTreeManagerServer()
 }

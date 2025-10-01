@@ -17,6 +17,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import xxhash from "xxhash-wasm";
+import stringify from 'safe-stable-stringify';
 
 class FSTree {
     constructor(data) {
@@ -26,7 +28,7 @@ class FSTree {
         this.tree = data;
         this.nodes = data.nodes;
         this.rootId = data.root_id;
-        
+
         // Get the root node to determine the root path
         const rootNode = this.nodes[this.rootId];
         if (rootNode && rootNode.fs_entry) {
@@ -34,6 +36,12 @@ class FSTree {
         } else {
             this.root = "/";
         }
+
+        // print the root path and hash
+        console.log(`root path: ${this.root}, root hash: ${rootNode.merkle_hash}`);
+
+        // print the root node
+        console.log(`root node: ${JSON.stringify(rootNode)}`);
     }
 
     /**
@@ -43,52 +51,52 @@ class FSTree {
      * @param {Array} childrenHashes - Array of child node hashes
      * @returns {string} - Hex string representation of the hash
      */
-    calculateMerkleHash(node, childrenHashes = []) {
-        // Create a hash object using our simple xxhash implementation
-        let hasher = new Uint8Array(0);
-        
-        // Add self attributes to the hash (metadata as JSON)
-        // This matches: hasher.Write(metadataBytes) in Go
+    async calculateMerkleHash(node, childrenHashes = []) {
+        const { create64 } = await xxhash();
+
+        const hasher = create64(0n);
+
         if (node.fs_entry) {
-            const metadataBytes = new TextEncoder().encode(JSON.stringify(node.fs_entry));
-            const combined = new Uint8Array(hasher.length + metadataBytes.length);
-            combined.set(hasher);
-            combined.set(metadataBytes, hasher.length);
-            hasher = combined;
+            const metadata = stringify(node.fs_entry);
+            console.log(`metadata: ${metadata}`);
+            hasher.update(metadata);
         }
-        
-        // Add children hashes in sorted order for consistency
-        // This matches: sort.Strings(childrenHashes) and hasher.WriteString(childHash) in Go
-        const sortedChildrenHashes = [...childrenHashes].sort();
+
+        // const sortedChildrenHashes = [...childrenHashes].sort();
+        // const sortedChildrenHashes = [...childrenHashes].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+        const sortedChildrenHashes = [...childrenHashes].sort((a, b) =>
+            BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0
+        );
+        console.log(`sortedChildrenHashes [${childrenHashes.length}]: ${sortedChildrenHashes}`);
         for (const childHash of sortedChildrenHashes) {
-            const childBytes = new TextEncoder().encode(childHash);
-            const combined = new Uint8Array(hasher.length + childBytes.length);
-            combined.set(hasher);
-            combined.set(childBytes, hasher.length);
-            hasher = combined;
+            const childBytes = childHash.toString();
+            console.log(`childBytes: ${childBytes}`);
+            hasher.update(childBytes);
         }
+
+        const hash = hasher.digest();
+        console.log(`node ${node.fs_entry.path} hash: ${hash}`);
+        return hash;
     }
 
     /**
      * Recalculate Merkle hashes for all ancestors of a given node
      * @param {string} nodeId - The ID of the node whose ancestors need recalculation
      */
-    recalculateAncestorHashes(nodeId) {
+    async recalculateAncestorHashes(nodeId) {
         const node = this.nodes[nodeId];
         if (!node) {
             return;
         }
 
-        // Start from the current node and work up to the root
         let currentNodeId = nodeId;
-        
+
         while (currentNodeId) {
             const currentNode = this.nodes[currentNodeId];
             if (!currentNode) {
                 break;
             }
 
-            // Get all children hashes
             const childrenHashes = [];
             if (currentNode.children_ids) {
                 for (const childId of currentNode.children_ids) {
@@ -99,10 +107,8 @@ class FSTree {
                 }
             }
 
-            // Calculate new hash for current node
-            currentNode.merkle_hash = this.calculateMerkleHash(currentNode, childrenHashes);
+            currentNode.merkle_hash = await this.calculateMerkleHash(currentNode, childrenHashes);
 
-            // Move to parent
             currentNodeId = currentNode.parent_id;
         }
     }
@@ -124,13 +130,13 @@ class FSTree {
             if (!currentNode || !currentNode.children_ids) {
                 return null;
             }
-            
+
             // Find child with matching name
             const foundId = currentNode.children_ids.find(childId => {
                 const childNode = this.nodes[childId];
                 return childNode && childNode.fs_entry && childNode.fs_entry.name === part;
             });
-            
+
             if (!foundId) {
                 return null;
             }
@@ -214,7 +220,7 @@ class FSTree {
      * Add a new directory to the tree
      * @param {Object} fs_entry - The fs_entry object of the new directory
      */
-    newDirectory(fs_entry) {
+    async newDirectory(fs_entry) {
         if (!fs_entry || !fs_entry.uid) {
             throw new Error('Invalid fs_entry: must have uid');
         }
@@ -229,29 +235,25 @@ class FSTree {
             throw new Error(`Parent directory not found: ${fs_entry.parent_uid}`);
         }
 
-        // Create new directory node
         const newNode = {
             id: fs_entry.uid,
-            merkle_hash: '', // Will be calculated below
+            merkle_hash: 0,
             parent_id: fs_entry.parent_uid,
             fs_entry: fs_entry,
             children_ids: []
         };
 
-        // Add to nodes map
         this.nodes[fs_entry.uid] = newNode;
 
-        // Add to parent's children_ids
         if (!parentNode.children_ids) {
             parentNode.children_ids = [];
         }
         parentNode.children_ids.push(fs_entry.uid);
 
-        // Calculate Merkle hash for the new directory (empty children)
-        newNode.merkle_hash = this.calculateMerkleHash(newNode, []);
+        await this.recalculateAncestorHashes(fs_entry.uid);
 
-        // Recalculate Merkle hashes for all ancestors
-        this.recalculateAncestorHashes(fs_entry.uid);
+        const rootNode = this.nodes[this.rootId];
+        console.log('Root hash:', rootNode?.merkle_hash);
     }
 }
 

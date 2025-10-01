@@ -26,6 +26,7 @@ class ReplicaManager {
         this.isConnected = false;
         this.isInitialized = false;
         this.username = null;
+        this.hashSenderInterval = null;
 
         this.available = false;
     }
@@ -102,6 +103,9 @@ class ReplicaManager {
 
             // Automatically fetch user's root path on connection
             this.fetchUserRoot();
+            
+            // Start background task to send FSTree hash
+            this.startHashSender();
         });
 
         this.socket.on('disconnect', () => {
@@ -119,6 +123,9 @@ class ReplicaManager {
 
             // Refetch user's root path on reconnection
             this.fetchUserRoot();
+            
+            // Restart hash sender on reconnection
+            this.startHashSender();
         });
 
         this.socket.on('reconnect_attempt', (attempt) => {
@@ -218,12 +225,63 @@ class ReplicaManager {
     }
 
     /**
+     * Start background task to send FSTree hash to server
+     */
+    startHashSender() {
+        // Clear any existing interval
+        if (this.hashSenderInterval) {
+            clearInterval(this.hashSenderInterval);
+        }
+
+        // Send hash immediately if FSTree is available
+        this.sendFSTreeHash();
+
+        // Set up interval to send hash every 5 seconds
+        this.hashSenderInterval = setInterval(() => {
+            this.sendFSTreeHash();
+        }, 5000);
+    }
+
+    /**
+     * Send FSTree root hash to server
+     */
+    sendFSTreeHash() {
+        if (!this.isSocketConnected() || !window.FSTree) {
+            return;
+        }
+
+        try {
+            const rootNode = window.FSTree.nodes[window.FSTree.rootId];
+            if (rootNode && rootNode.merkle_hash) {
+                this.socket.emit('fstree/hash', {
+                    hash: rootNode.merkle_hash,
+                    timestamp: Date.now()
+                });
+                
+                if (puter.debugMode) {
+                    console.log('Replica Manager: Sent FSTree hash:', rootNode.merkle_hash);
+                }
+            }
+        } catch (error) {
+            if (puter.debugMode) {
+                console.error('Replica Manager: Failed to send FSTree hash:', error);
+            }
+        }
+    }
+
+    /**
      * Disconnect the socket
      */
     disconnect() {
         if (this.socket) {
             this.socket.disconnect();
             this.isConnected = false;
+        }
+        
+        // Clear hash sender interval
+        if (this.hashSenderInterval) {
+            clearInterval(this.hashSenderInterval);
+            this.hashSenderInterval = null;
         }
     }
 }
