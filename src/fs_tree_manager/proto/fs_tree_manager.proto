@@ -7,8 +7,14 @@ package fs_tree_manager;
 
 option go_package = "github.com/puter/fs_tree_manager";
 
-// For all RPCs, user_name is always needed since replica are distinguished by
-// user_name.
+// For all RPC requests, user identifier is always needed since replicas are
+// stored separately for each user.
+//
+// We use user_id instead of user_name/user_uuid since it's more accessible:
+// - fsentry include user_id
+// (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L81)
+// - user_id is included in the fs events listener
+// (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
 service FSTreeManager {
   rpc FetchReplica(FetchReplicaRequest) returns (MerkleTree);
   rpc PullDiff(PullRequest) returns (PushRequest);
@@ -30,19 +36,19 @@ service FSTreeManager {
   rpc PurgeReplica(PurgeReplicaRequest) returns (google.protobuf.Empty);
 }
 
-message FetchReplicaRequest { string user_name = 1; }
+message FetchReplicaRequest { int64 user_id = 1; }
 
 message NewFSEntryRequest {
-  string user_name = 1;
+  int64 user_id = 1;
   FSEntry fs_entry = 2;
 }
 
 message RemoveFSEntryRequest {
-  string user_name = 1;
+  int64 user_id = 1;
   string uuid = 2;
 }
 
-message PurgeReplicaRequest { string user_name = 1; }
+message PurgeReplicaRequest { int64 user_id = 1; }
 
 message MerkleNode {
   // We use the stable uuid from fs_entry so pointers to it stay valid when this
@@ -73,7 +79,7 @@ message MerkleTree {
 message FSEntry { google.protobuf.Struct metadata = 1; }
 
 message PullRequest {
-  string user_name = 1;
+  int64 user_id = 1;
   repeated PullRequestItem pull_request = 2;
 }
 
@@ -83,7 +89,7 @@ message PullRequestItem {
 }
 
 message PushRequest {
-  string user_name = 1;
+  int64 user_id = 1;
   repeated PushRequestItem push_request = 2;
 }
 

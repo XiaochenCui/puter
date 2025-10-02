@@ -31,8 +31,14 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// For all RPCs, user_name is always needed since replica are distinguished by
-// user_name.
+// For all RPC requests, user identifier is always needed since replicas are
+// stored separately for each user.
+//
+// We use user_id instead of user_name/user_uuid since it's more accessible:
+// - fsentry include user_id
+// (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L81)
+// - user_id is included in the fs events listener
+// (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
 type FSTreeManagerClient interface {
 	FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*MerkleTree, error)
 	PullDiff(ctx context.Context, in *PullRequest, opts ...grpc.CallOption) (*PushRequest, error)
@@ -113,8 +119,14 @@ func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *PurgeReplica
 // All implementations must embed UnimplementedFSTreeManagerServer
 // for forward compatibility.
 //
-// For all RPCs, user_name is always needed since replica are distinguished by
-// user_name.
+// For all RPC requests, user identifier is always needed since replicas are
+// stored separately for each user.
+//
+// We use user_id instead of user_name/user_uuid since it's more accessible:
+// - fsentry include user_id
+// (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L81)
+// - user_id is included in the fs events listener
+// (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
 type FSTreeManagerServer interface {
 	FetchReplica(context.Context, *FetchReplicaRequest) (*MerkleTree, error)
 	PullDiff(context.Context, *PullRequest) (*PushRequest, error)

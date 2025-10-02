@@ -39,7 +39,7 @@ module.exports = {
             FSTreeManagerClient,
         } = require(path.join(genDir, 'fs_tree_manager_grpc_pb.js'));
         const {
-            PullRequest,
+            PullRequestRequest,
             PullRequestItem,
         } = require(path.join(genDir, 'fs_tree_manager_pb.js'));
 
@@ -47,10 +47,10 @@ module.exports = {
 
         try {
             // Build the PullRequest message
-            const requestMsg = new PullRequest();
+            const requestMsg = new PullRequestRequest();
 
             // Set the user_name at the top level
-            requestMsg.setUserName(data.user_name);
+            requestMsg.setUserId(socket.user.id);
 
             // Add each pull request item
             if ( data.pull_request && Array.isArray(data.pull_request) ) {

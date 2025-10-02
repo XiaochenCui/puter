@@ -25,7 +25,7 @@ const (
 
 type FetchReplicaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserName      string                 `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -60,16 +60,16 @@ func (*FetchReplicaRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *FetchReplicaRequest) GetUserName() string {
+func (x *FetchReplicaRequest) GetUserId() int64 {
 	if x != nil {
-		return x.UserName
+		return x.UserId
 	}
-	return ""
+	return 0
 }
 
 type NewFSEntryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserName      string                 `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	FsEntry       *FSEntry               `protobuf:"bytes,2,opt,name=fs_entry,json=fsEntry,proto3" json:"fs_entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -105,11 +105,11 @@ func (*NewFSEntryRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *NewFSEntryRequest) GetUserName() string {
+func (x *NewFSEntryRequest) GetUserId() int64 {
 	if x != nil {
-		return x.UserName
+		return x.UserId
 	}
-	return ""
+	return 0
 }
 
 func (x *NewFSEntryRequest) GetFsEntry() *FSEntry {
@@ -121,7 +121,7 @@ func (x *NewFSEntryRequest) GetFsEntry() *FSEntry {
 
 type RemoveFSEntryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserName      string                 `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Uuid          string                 `protobuf:"bytes,2,opt,name=uuid,proto3" json:"uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -157,11 +157,11 @@ func (*RemoveFSEntryRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RemoveFSEntryRequest) GetUserName() string {
+func (x *RemoveFSEntryRequest) GetUserId() int64 {
 	if x != nil {
-		return x.UserName
+		return x.UserId
 	}
-	return ""
+	return 0
 }
 
 func (x *RemoveFSEntryRequest) GetUuid() string {
@@ -173,7 +173,7 @@ func (x *RemoveFSEntryRequest) GetUuid() string {
 
 type PurgeReplicaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserName      string                 `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -208,11 +208,11 @@ func (*PurgeReplicaRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PurgeReplicaRequest) GetUserName() string {
+func (x *PurgeReplicaRequest) GetUserId() int64 {
 	if x != nil {
-		return x.UserName
+		return x.UserId
 	}
-	return ""
+	return 0
 }
 
 type MerkleNode struct {
@@ -398,7 +398,7 @@ func (x *FSEntry) GetMetadata() *structpb.Struct {
 
 type PullRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserName      string                 `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	PullRequest   []*PullRequestItem     `protobuf:"bytes,2,rep,name=pull_request,json=pullRequest,proto3" json:"pull_request,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -434,11 +434,11 @@ func (*PullRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *PullRequest) GetUserName() string {
+func (x *PullRequest) GetUserId() int64 {
 	if x != nil {
-		return x.UserName
+		return x.UserId
 	}
-	return ""
+	return 0
 }
 
 func (x *PullRequest) GetPullRequest() []*PullRequestItem {
@@ -502,7 +502,7 @@ func (x *PullRequestItem) GetMerkleHash() string {
 
 type PushRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserName      string                 `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	PushRequest   []*PushRequestItem     `protobuf:"bytes,2,rep,name=push_request,json=pushRequest,proto3" json:"push_request,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -538,11 +538,11 @@ func (*PushRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *PushRequest) GetUserName() string {
+func (x *PushRequest) GetUserId() int64 {
 	if x != nil {
-		return x.UserName
+		return x.UserId
 	}
-	return ""
+	return 0
 }
 
 func (x *PushRequest) GetPushRequest() []*PushRequestItem {
@@ -624,17 +624,17 @@ var File_fs_tree_manager_proto protoreflect.FileDescriptor
 
 const file_fs_tree_manager_proto_rawDesc = "" +
 	"\n" +
-	"\x15fs_tree_manager.proto\x12\x0ffs_tree_manager\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1bgoogle/protobuf/empty.proto\"2\n" +
-	"\x13FetchReplicaRequest\x12\x1b\n" +
-	"\tuser_name\x18\x01 \x01(\tR\buserName\"e\n" +
-	"\x11NewFSEntryRequest\x12\x1b\n" +
-	"\tuser_name\x18\x01 \x01(\tR\buserName\x123\n" +
-	"\bfs_entry\x18\x02 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\"G\n" +
-	"\x14RemoveFSEntryRequest\x12\x1b\n" +
-	"\tuser_name\x18\x01 \x01(\tR\buserName\x12\x12\n" +
-	"\x04uuid\x18\x02 \x01(\tR\x04uuid\"2\n" +
-	"\x13PurgeReplicaRequest\x12\x1b\n" +
-	"\tuser_name\x18\x01 \x01(\tR\buserName\"\xbe\x01\n" +
+	"\x15fs_tree_manager.proto\x12\x0ffs_tree_manager\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1bgoogle/protobuf/empty.proto\".\n" +
+	"\x13FetchReplicaRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"a\n" +
+	"\x11NewFSEntryRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x123\n" +
+	"\bfs_entry\x18\x02 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\"C\n" +
+	"\x14RemoveFSEntryRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x12\n" +
+	"\x04uuid\x18\x02 \x01(\tR\x04uuid\".\n" +
+	"\x13PurgeReplicaRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xbe\x01\n" +
 	"\n" +
 	"MerkleNode\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +
@@ -653,16 +653,16 @@ const file_fs_tree_manager_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
 	"\x05value\x18\x02 \x01(\v2\x1b.fs_tree_manager.MerkleNodeR\x05value:\x028\x01\">\n" +
 	"\aFSEntry\x123\n" +
-	"\bmetadata\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"o\n" +
-	"\vPullRequest\x12\x1b\n" +
-	"\tuser_name\x18\x01 \x01(\tR\buserName\x12C\n" +
+	"\bmetadata\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"k\n" +
+	"\vPullRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12C\n" +
 	"\fpull_request\x18\x02 \x03(\v2 .fs_tree_manager.PullRequestItemR\vpullRequest\"F\n" +
 	"\x0fPullRequestItem\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +
 	"\vmerkle_hash\x18\x02 \x01(\tR\n" +
-	"merkleHash\"o\n" +
-	"\vPushRequest\x12\x1b\n" +
-	"\tuser_name\x18\x01 \x01(\tR\buserName\x12C\n" +
+	"merkleHash\"k\n" +
+	"\vPushRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12C\n" +
 	"\fpush_request\x18\x02 \x03(\v2 .fs_tree_manager.PushRequestItemR\vpushRequest\"\xb9\x01\n" +
 	"\x0fPushRequestItem\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +

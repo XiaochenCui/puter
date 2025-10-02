@@ -10,6 +10,8 @@ const {
 } = require(path.join(genDir, 'fs_tree_manager_grpc_pb.js'));
 const {
     FSEntry,
+    NewFSEntryRequest,
+    RemoveFSEntryRequest,
 } = require(path.join(genDir, 'fs_tree_manager_pb.js'));
 
 // protobuf built-in types
@@ -20,20 +22,28 @@ const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.creat
 
 /**
  * Sends a new filesystem entry to the gRPC service
+ * @param {string} userName - The user name for the request
  * @param {Object} metadata - The metadata for the FSEntry
  * @returns {Promise<void>} - Resolves when the entry is sent successfully
  * @throws {Error} - If the gRPC call fails
  */
-async function sendFsNew(metadata) {
+async function sendFsNew(userName, metadata) {
     return new Promise((resolve, reject) => {
+        if ( !userName ) {
+            reject(new Error('User name is required'));
+            return;
+        }
         if ( !metadata ) {
             reject(new Error('Metadata is required'));
             return;
         }
 
         const fsEntry = buildFsEntry(metadata);
+        const request = new NewFSEntryRequest();
+        request.setUserName(userName);
+        request.setFsEntry(fsEntry);
 
-        client.newFSEntry(fsEntry, (err, _response) => {
+        client.newFSEntry(request, (err, _response) => {
             if ( err ) {
                 reject(new Error(`Failed to send fs new entry: ${err.message}`));
                 return;
@@ -45,20 +55,27 @@ async function sendFsNew(metadata) {
 
 /**
  * Sends a remove filesystem entry to the gRPC service
- * @param {Object} metadata - The metadata for the FSEntry to remove
+ * @param {string} userName - The user name for the request
+ * @param {string} uuid - The UUID of the FSEntry to remove
  * @returns {Promise<void>} - Resolves when the entry is sent successfully
  * @throws {Error} - If the gRPC call fails
  */
-async function sendFsRemove(metadata) {
+async function sendFsRemove(userName, uuid) {
     return new Promise((resolve, reject) => {
-        if ( !metadata ) {
-            reject(new Error('Metadata is required'));
+        if ( !userName ) {
+            reject(new Error('User name is required'));
+            return;
+        }
+        if ( !uuid ) {
+            reject(new Error('UUID is required'));
             return;
         }
 
-        const fsEntry = buildFsEntry(metadata);
+        const request = new RemoveFSEntryRequest();
+        request.setUserName(userName);
+        request.setUuid(uuid);
 
-        client.removeFSEntry(fsEntry, (err, _response) => {
+        client.removeFSEntry(request, (err, _response) => {
             if ( err ) {
                 reject(new Error(`Failed to send fs remove entry: ${err.message}`));
                 return;

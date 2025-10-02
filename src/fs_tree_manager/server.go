@@ -9,6 +9,7 @@ import (
 	"net"
 	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -19,10 +20,103 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+// LockedMerkleTree wraps a MerkleTree with its own lock
+type LockedMerkleTree struct {
+	tree *pb.MerkleTree
+	lock sync.RWMutex
+}
+
+// Global variables for trees management
+var (
+	trees     map[int64]*LockedMerkleTree // In-memory tree cache by user_id
+	treesLock sync.RWMutex                // Protects access to the trees map
+)
+
 type server struct {
 	pb.UnimplementedFSTreeManagerServer
-	db    *sql.DB
-	trees map[string]*pb.MerkleTree // In-memory tree cache by username
+	db *sql.DB
+}
+
+// getMerkleTree atomically gets or creates a MerkleTree for a user
+// Returns a read-locked tree that must be unlocked by the caller
+func getMerkleTree(s *server, userID int64) (*LockedMerkleTree, error) {
+	// First check if tree exists in cache (read lock)
+	treesLock.RLock()
+	lockedTree, exists := trees[userID]
+	treesLock.RUnlock()
+
+	if exists {
+		// Tree exists, acquire read lock and return
+		lockedTree.lock.RLock()
+		return lockedTree, nil
+	}
+
+	// Tree doesn't exist, need to create it (write lock)
+	treesLock.Lock()
+	defer treesLock.Unlock()
+
+	// Double-check after acquiring write lock
+	if lockedTree, exists := trees[userID]; exists {
+		lockedTree.lock.RLock()
+		return lockedTree, nil
+	}
+
+	// Build new tree
+	tree, err := s.buildUserFSTree(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create locked tree and store in cache
+	lockedTree = &LockedMerkleTree{
+		tree: tree,
+	}
+	trees[userID] = lockedTree
+
+	// Acquire read lock and return
+	lockedTree.lock.RLock()
+	return lockedTree, nil
+}
+
+// getMerkleTreeForWrite atomically gets or creates a MerkleTree for a user for write operations
+// Returns a write-locked tree that must be unlocked by the caller
+func getMerkleTreeForWrite(s *server, userID int64) (*LockedMerkleTree, error) {
+	// First check if tree exists in cache (read lock)
+	treesLock.RLock()
+	lockedTree, exists := trees[userID]
+	treesLock.RUnlock()
+
+	if exists {
+		// Tree exists, acquire write lock and return
+		lockedTree.lock.Lock()
+		return lockedTree, nil
+	}
+
+	// Tree doesn't exist, need to create it (write lock)
+	treesLock.Lock()
+	defer treesLock.Unlock()
+
+	// Double-check after acquiring write lock
+	if lockedTree, exists := trees[userID]; exists {
+		lockedTree.lock.Lock()
+		return lockedTree, nil
+	}
+
+	// Build new tree
+	tree, err := s.buildUserFSTree(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create locked tree and store in cache
+	lockedTree = &LockedMerkleTree{
+		tree: tree,
+	}
+	trees[userID] = lockedTree
+
+	// Acquire write lock and return
+	lockedTree.lock.Lock()
+	return lockedTree, nil
 }
 
 // calculateMerkleHash calculates the MerkleHash for a node based on its attributes and children hashes
@@ -93,6 +187,7 @@ func calculateTreeMerkleHashes(tree *pb.MerkleTree) {
 }
 
 // recalculateAncestorHashes recalculates Merkle hashes for all ancestors of a given node
+// Note: This function assumes the tree is already locked by the caller
 func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
 	currentNodeID := nodeID
 
@@ -117,27 +212,20 @@ func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
 
 // FetchReplica implements the FSTreeManager service
 func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) (*pb.MerkleTree, error) {
-	var tree *pb.MerkleTree
-	var err error
-
-	if cachedTree, exists := s.trees[req.UserName]; exists {
-		tree = cachedTree
-	} else {
-		tree, err = s.buildUserFSTree(req.UserName)
-		if err != nil {
-			return nil, err
-		}
-		s.trees[req.UserName] = tree
+	lockedTree, err := getMerkleTree(s, req.UserId)
+	if err != nil {
+		return nil, err
 	}
+	defer lockedTree.lock.RUnlock()
 
-	log.Printf("[user %s] fetched replica", req.UserName)
+	log.Printf("[user %d] fetched replica", req.UserId)
 
-	return tree, nil
+	return lockedTree.tree, nil
 }
 
 // NewFSEntry implements the FSTreeManager service
 func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*emptypb.Empty, error) {
-	username := req.UserName
+	userID := req.UserId
 	fsEntry := req.FsEntry
 
 	metadataMap := fsEntry.Metadata.AsMap()
@@ -151,18 +239,13 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 		return nil, fmt.Errorf("invalid metadata: missing parent_uid")
 	}
 
-	var tree *pb.MerkleTree
-	var err error
-	if cachedTree, exists := s.trees[username]; exists {
-		tree = cachedTree
-	} else {
-		tree, err = s.buildUserFSTree(username)
-		if err != nil {
-			return nil, err
-		}
-		s.trees[username] = tree
+	lockedTree, err := getMerkleTreeForWrite(s, userID)
+	if err != nil {
+		return nil, err
 	}
+	defer lockedTree.lock.Unlock()
 
+	tree := lockedTree.tree
 	parentNode, exists := tree.Nodes[parentUID]
 	if !exists {
 		return nil, fmt.Errorf("parent directory not found: %s", parentUID)
@@ -189,24 +272,19 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 
 // RemoveFSEntry implements the FSTreeManager service
 func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest) (*emptypb.Empty, error) {
-	username := req.UserName
+	userID := req.UserId
 	uid := req.Uuid
 	if uid == "" {
 		return nil, fmt.Errorf("invalid request: missing uuid")
 	}
 
-	var tree *pb.MerkleTree
-	var err error
-	if cachedTree, exists := s.trees[username]; exists {
-		tree = cachedTree
-	} else {
-		tree, err = s.buildUserFSTree(username)
-		if err != nil {
-			return nil, err
-		}
-		s.trees[username] = tree
+	lockedTree, err := getMerkleTreeForWrite(s, userID)
+	if err != nil {
+		return nil, err
 	}
+	defer lockedTree.lock.Unlock()
 
+	tree := lockedTree.tree
 	targetNode, exists := tree.Nodes[uid]
 	if !exists {
 		return nil, fmt.Errorf("entry not found: %s", uid)
@@ -232,37 +310,39 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		recalculateAncestorHashes(tree, targetNode.ParentUuid)
 	}
 
-	log.Printf("[user %s] removed fs entry: %s", username, uid)
+	log.Printf("[user %d] removed fs entry: %s", userID, uid)
 
 	return &emptypb.Empty{}, nil
 }
 
 // PullDiff implements the FSTreeManager service
 func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
-	cachedTree, exists := s.trees[req.UserName]
-	if !exists {
-		return nil, fmt.Errorf("[user %s] no cached tree found", req.UserName)
+	lockedTree, err := getMerkleTree(s, req.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("[user %d] no cached tree found: %v", req.UserId, err)
 	}
+	defer lockedTree.lock.RUnlock()
 
+	tree := lockedTree.tree
 	response := &pb.PushRequest{
-		UserName:    req.UserName,
+		UserId:      req.UserId,
 		PushRequest: []*pb.PushRequestItem{},
 	}
 
 	for _, pullRequestItem := range req.PullRequest {
-		node, exists := cachedTree.Nodes[pullRequestItem.Uuid]
+		node, exists := tree.Nodes[pullRequestItem.Uuid]
 		if !exists {
-			log.Printf("[user %s] node not found: %s", req.UserName, pullRequestItem.Uuid)
+			log.Printf("[user %d] node not found: %s", req.UserId, pullRequestItem.Uuid)
 			continue
 		}
 
 		// If hashes match, no need to send this node
 		if node.MerkleHash == pullRequestItem.MerkleHash {
-			log.Printf("[user %s] node %s merkle hash matches: %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash)
+			log.Printf("[user %d] node %s merkle hash matches: %s", req.UserId, pullRequestItem.Uuid, node.MerkleHash)
 			continue
 		}
 
-		log.Printf("[user %s] node %s merkle hash mismatch: %s != %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash, pullRequestItem.MerkleHash)
+		log.Printf("[user %d] node %s merkle hash mismatch: %s != %s", req.UserId, pullRequestItem.Uuid, node.MerkleHash, pullRequestItem.MerkleHash)
 
 		// Create push request item with node and its children
 		pushItem := &pb.PushRequestItem{
@@ -274,7 +354,7 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 
 		// Add all children
 		for _, childUUID := range node.ChildrenUuids {
-			if childNode, childExists := cachedTree.Nodes[childUUID]; childExists {
+			if childNode, childExists := tree.Nodes[childUUID]; childExists {
 				childPushItem := &pb.PushRequestItem{
 					Uuid:       childNode.Uuid,
 					MerkleHash: childNode.MerkleHash,
@@ -286,7 +366,7 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 		}
 
 		response.PushRequest = append(response.PushRequest, pushItem)
-		log.Printf("[user %s] push request: %s, %d children", req.UserName, pushItem.Uuid, len(pushItem.Children))
+		log.Printf("[user %d] push request: %s, %d children", req.UserId, pushItem.Uuid, len(pushItem.Children))
 	}
 
 	return response, nil
@@ -294,7 +374,10 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 
 // PurgeReplica implements the FSTreeManager service
 func (s *server) PurgeReplica(ctx context.Context, req *pb.PurgeReplicaRequest) (*emptypb.Empty, error) {
-	delete(s.trees, req.UserName)
+	// Write lock for deleting from the trees map
+	treesLock.Lock()
+	delete(trees, req.UserId)
+	treesLock.Unlock()
 
 	return &emptypb.Empty{}, nil
 }
@@ -304,7 +387,7 @@ const sqliteDBPath = "/var/puter/puter-database.sqlite"
 const tableName = "fsentries"
 
 // buildMetadata creates a comprehensive metadata structure matching the expected format
-func buildMetadata(uuid, name, path, parentUID, userName string, isDir bool, size sql.NullInt64,
+func buildMetadata(uuid, name, path, parentUID string, userID int64, isDir bool, size sql.NullInt64,
 	createdAt, modifiedAt, accessedAt float64, isPublic, isShortcut, isSymlink sql.NullBool,
 	symlinkPath, sortBy, sortOrder sql.NullString, immutable sql.NullBool,
 	metadata, associatedAppID, publicToken, fileRequestToken sql.NullString) (*structpb.Struct, error) {
@@ -341,7 +424,7 @@ func buildMetadata(uuid, name, path, parentUID, userName string, isDir bool, siz
 		"layout":             nil,
 		"path":               path,
 		"owner": map[string]interface{}{
-			"username": userName,
+			"user_id": userID,
 		},
 		"type":       nil,
 		"subdomains": []interface{}{},
@@ -389,8 +472,8 @@ func getInt64Value(ni sql.NullInt64) interface{} {
 }
 
 // buildUserFSTree builds the filesystem tree for a given user from the database
-func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
-	rootPath := "/" + userName
+func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
+	rootPath := fmt.Sprintf("/%d", userID)
 
 	query := `
 		SELECT uuid, name, is_dir, size, created, modified, path, parent_uid, 
@@ -438,7 +521,7 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 			accessedAtValue = accessedAt.Float64
 		}
 
-		metadataStruct, err := buildMetadata(uuid, name, path, parentUIDStr, userName, isDir, size,
+		metadataStruct, err := buildMetadata(uuid, name, path, parentUIDStr, userID, isDir, size,
 			createdAt, modifiedAt, accessedAtValue, isPublic, isShortcut, isSymlink,
 			symlinkPath, sortBy, sortOrder, immutable, metadata, associatedAppID, publicToken, fileRequestToken)
 		if err != nil {
@@ -484,6 +567,9 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 }
 
 func main() {
+	// Initialize global trees map
+	trees = make(map[int64]*LockedMerkleTree)
+
 	db, err := sql.Open("sqlite3", sqliteDBPath)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
@@ -502,8 +588,7 @@ func main() {
 	grpcServer := grpc.NewServer()
 
 	pb.RegisterFSTreeManagerServer(grpcServer, &server{
-		db:    db,
-		trees: make(map[string]*pb.MerkleTree),
+		db: db,
 	})
 
 	if err := grpcServer.Serve(lis); err != nil {

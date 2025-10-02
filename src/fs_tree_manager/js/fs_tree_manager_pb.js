@@ -299,7 +299,7 @@ proto.fs_tree_manager.FetchReplicaRequest.prototype.toObject = function(opt_incl
  */
 proto.fs_tree_manager.FetchReplicaRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    userName: jspb.Message.getFieldWithDefault(msg, 1, "")
+    userId: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -337,8 +337,8 @@ proto.fs_tree_manager.FetchReplicaRequest.deserializeBinaryFromReader = function
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setUserName(value);
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setUserId(value);
       break;
     default:
       reader.skipField();
@@ -369,9 +369,9 @@ proto.fs_tree_manager.FetchReplicaRequest.prototype.serializeBinary = function()
  */
 proto.fs_tree_manager.FetchReplicaRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getUserName();
-  if (f.length > 0) {
-    writer.writeString(
+  f = message.getUserId();
+  if (f !== 0) {
+    writer.writeInt64(
       1,
       f
     );
@@ -380,20 +380,20 @@ proto.fs_tree_manager.FetchReplicaRequest.serializeBinaryToWriter = function(mes
 
 
 /**
- * optional string user_name = 1;
- * @return {string}
+ * optional int64 user_id = 1;
+ * @return {number}
  */
-proto.fs_tree_manager.FetchReplicaRequest.prototype.getUserName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+proto.fs_tree_manager.FetchReplicaRequest.prototype.getUserId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.fs_tree_manager.FetchReplicaRequest} returns this
  */
-proto.fs_tree_manager.FetchReplicaRequest.prototype.setUserName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+proto.fs_tree_manager.FetchReplicaRequest.prototype.setUserId = function(value) {
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -429,7 +429,7 @@ proto.fs_tree_manager.NewFSEntryRequest.prototype.toObject = function(opt_includ
  */
 proto.fs_tree_manager.NewFSEntryRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    userName: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    userId: jspb.Message.getFieldWithDefault(msg, 1, 0),
     fsEntry: (f = msg.getFsEntry()) && proto.fs_tree_manager.FSEntry.toObject(includeInstance, f)
   };
 
@@ -468,8 +468,8 @@ proto.fs_tree_manager.NewFSEntryRequest.deserializeBinaryFromReader = function(m
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setUserName(value);
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setUserId(value);
       break;
     case 2:
       var value = new proto.fs_tree_manager.FSEntry;
@@ -505,9 +505,9 @@ proto.fs_tree_manager.NewFSEntryRequest.prototype.serializeBinary = function() {
  */
 proto.fs_tree_manager.NewFSEntryRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getUserName();
-  if (f.length > 0) {
-    writer.writeString(
+  f = message.getUserId();
+  if (f !== 0) {
+    writer.writeInt64(
       1,
       f
     );
@@ -524,20 +524,20 @@ proto.fs_tree_manager.NewFSEntryRequest.serializeBinaryToWriter = function(messa
 
 
 /**
- * optional string user_name = 1;
- * @return {string}
+ * optional int64 user_id = 1;
+ * @return {number}
  */
-proto.fs_tree_manager.NewFSEntryRequest.prototype.getUserName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+proto.fs_tree_manager.NewFSEntryRequest.prototype.getUserId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.fs_tree_manager.NewFSEntryRequest} returns this
  */
-proto.fs_tree_manager.NewFSEntryRequest.prototype.setUserName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+proto.fs_tree_manager.NewFSEntryRequest.prototype.setUserId = function(value) {
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -610,7 +610,7 @@ proto.fs_tree_manager.RemoveFSEntryRequest.prototype.toObject = function(opt_inc
  */
 proto.fs_tree_manager.RemoveFSEntryRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    userName: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    userId: jspb.Message.getFieldWithDefault(msg, 1, 0),
     uuid: jspb.Message.getFieldWithDefault(msg, 2, "")
   };
 
@@ -649,8 +649,8 @@ proto.fs_tree_manager.RemoveFSEntryRequest.deserializeBinaryFromReader = functio
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setUserName(value);
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setUserId(value);
       break;
     case 2:
       var value = /** @type {string} */ (reader.readString());
@@ -685,9 +685,9 @@ proto.fs_tree_manager.RemoveFSEntryRequest.prototype.serializeBinary = function(
  */
 proto.fs_tree_manager.RemoveFSEntryRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getUserName();
-  if (f.length > 0) {
-    writer.writeString(
+  f = message.getUserId();
+  if (f !== 0) {
+    writer.writeInt64(
       1,
       f
     );
@@ -703,20 +703,20 @@ proto.fs_tree_manager.RemoveFSEntryRequest.serializeBinaryToWriter = function(me
 
 
 /**
- * optional string user_name = 1;
- * @return {string}
+ * optional int64 user_id = 1;
+ * @return {number}
  */
-proto.fs_tree_manager.RemoveFSEntryRequest.prototype.getUserName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+proto.fs_tree_manager.RemoveFSEntryRequest.prototype.getUserId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.fs_tree_manager.RemoveFSEntryRequest} returns this
  */
-proto.fs_tree_manager.RemoveFSEntryRequest.prototype.setUserName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+proto.fs_tree_manager.RemoveFSEntryRequest.prototype.setUserId = function(value) {
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -770,7 +770,7 @@ proto.fs_tree_manager.PurgeReplicaRequest.prototype.toObject = function(opt_incl
  */
 proto.fs_tree_manager.PurgeReplicaRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    userName: jspb.Message.getFieldWithDefault(msg, 1, "")
+    userId: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -808,8 +808,8 @@ proto.fs_tree_manager.PurgeReplicaRequest.deserializeBinaryFromReader = function
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setUserName(value);
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setUserId(value);
       break;
     default:
       reader.skipField();
@@ -840,9 +840,9 @@ proto.fs_tree_manager.PurgeReplicaRequest.prototype.serializeBinary = function()
  */
 proto.fs_tree_manager.PurgeReplicaRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getUserName();
-  if (f.length > 0) {
-    writer.writeString(
+  f = message.getUserId();
+  if (f !== 0) {
+    writer.writeInt64(
       1,
       f
     );
@@ -851,20 +851,20 @@ proto.fs_tree_manager.PurgeReplicaRequest.serializeBinaryToWriter = function(mes
 
 
 /**
- * optional string user_name = 1;
- * @return {string}
+ * optional int64 user_id = 1;
+ * @return {number}
  */
-proto.fs_tree_manager.PurgeReplicaRequest.prototype.getUserName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+proto.fs_tree_manager.PurgeReplicaRequest.prototype.getUserId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.fs_tree_manager.PurgeReplicaRequest} returns this
  */
-proto.fs_tree_manager.PurgeReplicaRequest.prototype.setUserName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+proto.fs_tree_manager.PurgeReplicaRequest.prototype.setUserId = function(value) {
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1518,7 +1518,7 @@ proto.fs_tree_manager.PullRequest.prototype.toObject = function(opt_includeInsta
  */
 proto.fs_tree_manager.PullRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    userName: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    userId: jspb.Message.getFieldWithDefault(msg, 1, 0),
     pullRequestList: jspb.Message.toObjectList(msg.getPullRequestList(),
     proto.fs_tree_manager.PullRequestItem.toObject, includeInstance)
   };
@@ -1558,8 +1558,8 @@ proto.fs_tree_manager.PullRequest.deserializeBinaryFromReader = function(msg, re
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setUserName(value);
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setUserId(value);
       break;
     case 2:
       var value = new proto.fs_tree_manager.PullRequestItem;
@@ -1595,9 +1595,9 @@ proto.fs_tree_manager.PullRequest.prototype.serializeBinary = function() {
  */
 proto.fs_tree_manager.PullRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getUserName();
-  if (f.length > 0) {
-    writer.writeString(
+  f = message.getUserId();
+  if (f !== 0) {
+    writer.writeInt64(
       1,
       f
     );
@@ -1614,20 +1614,20 @@ proto.fs_tree_manager.PullRequest.serializeBinaryToWriter = function(message, wr
 
 
 /**
- * optional string user_name = 1;
- * @return {string}
+ * optional int64 user_id = 1;
+ * @return {number}
  */
-proto.fs_tree_manager.PullRequest.prototype.getUserName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+proto.fs_tree_manager.PullRequest.prototype.getUserId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.fs_tree_manager.PullRequest} returns this
  */
-proto.fs_tree_manager.PullRequest.prototype.setUserName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+proto.fs_tree_manager.PullRequest.prototype.setUserId = function(value) {
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1868,7 +1868,7 @@ proto.fs_tree_manager.PushRequest.prototype.toObject = function(opt_includeInsta
  */
 proto.fs_tree_manager.PushRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    userName: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    userId: jspb.Message.getFieldWithDefault(msg, 1, 0),
     pushRequestList: jspb.Message.toObjectList(msg.getPushRequestList(),
     proto.fs_tree_manager.PushRequestItem.toObject, includeInstance)
   };
@@ -1908,8 +1908,8 @@ proto.fs_tree_manager.PushRequest.deserializeBinaryFromReader = function(msg, re
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setUserName(value);
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setUserId(value);
       break;
     case 2:
       var value = new proto.fs_tree_manager.PushRequestItem;
@@ -1945,9 +1945,9 @@ proto.fs_tree_manager.PushRequest.prototype.serializeBinary = function() {
  */
 proto.fs_tree_manager.PushRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getUserName();
-  if (f.length > 0) {
-    writer.writeString(
+  f = message.getUserId();
+  if (f !== 0) {
+    writer.writeInt64(
       1,
       f
     );
@@ -1964,20 +1964,20 @@ proto.fs_tree_manager.PushRequest.serializeBinaryToWriter = function(message, wr
 
 
 /**
- * optional string user_name = 1;
- * @return {string}
+ * optional int64 user_id = 1;
+ * @return {number}
  */
-proto.fs_tree_manager.PushRequest.prototype.getUserName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+proto.fs_tree_manager.PushRequest.prototype.getUserId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
 /**
- * @param {string} value
+ * @param {number} value
  * @return {!proto.fs_tree_manager.PushRequest} returns this
  */
-proto.fs_tree_manager.PushRequest.prototype.setUserName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
+proto.fs_tree_manager.PushRequest.prototype.setUserId = function(value) {
+  return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
