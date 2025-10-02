@@ -38,7 +38,7 @@ async function sendFsUpdate(fsUpdateEvent) {
         const fsEntry = buildFsEntry(fsUpdateEvent.metadata);
 
         // Call the NewDirectory RPC
-        client.newDirectory(fsEntry, (err, response) => {
+        client.NewFSEntry(fsEntry, (err, response) => {
             if (err) {
                 reject(new Error(`Failed to send fs update: ${err.message}`));
                 return;
@@ -127,20 +127,8 @@ function sanitizeForStruct(value) {
  * @returns {FSEntry}
  */
 function buildFsEntry(metadataObj) {
-
-    {
-        // debug
-        const res_1 = sanitizeForStruct(metadataObj);
-        const res_2 = stringify(metadataObj);
-        console.log(`res_1: ${res_1}`);
-        console.log(`res_2: ${res_2}`);
-    }
-
     const sanitized = sanitizeForStruct(metadataObj);
-    // const sanitized = stringify(metadataObj);
-
     const struct = Struct.fromJavaScript(sanitized);
-
     const fsEntry = new FSEntry();
     fsEntry.setMetadata(struct);
     return fsEntry;

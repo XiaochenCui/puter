@@ -17,8 +17,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import xxhash from "xxhash-wasm";
 import stringify from 'safe-stable-stringify';
+import xxhash from "xxhash-wasm";
 
 class FSTree {
     constructor(data) {
@@ -27,7 +27,7 @@ class FSTree {
         }
         this.tree = data;
         this.nodes = data.nodes;
-        this.rootId = data.root_id;
+        this.rootId = data.root_uuid;
 
         // Get the root node to determine the root path
         const rootNode = this.nodes[this.rootId];
@@ -98,8 +98,8 @@ class FSTree {
             }
 
             const childrenHashes = [];
-            if (currentNode.children_ids) {
-                for (const childId of currentNode.children_ids) {
+            if (currentNode.children_uuids) {
+                for (const childId of currentNode.children_uuids) {
                     const childNode = this.nodes[childId];
                     if (childNode && childNode.merkle_hash) {
                         childrenHashes.push(childNode.merkle_hash);
@@ -109,7 +109,7 @@ class FSTree {
 
             currentNode.merkle_hash = await this.calculateMerkleHash(currentNode, childrenHashes);
 
-            currentNodeId = currentNode.parent_id;
+            currentNodeId = currentNode.parent_uuid;
         }
     }
 
@@ -127,12 +127,12 @@ class FSTree {
 
         for (const part of parts) {
             const currentNode = this.nodes[currentId];
-            if (!currentNode || !currentNode.children_ids) {
+            if (!currentNode || !currentNode.children_uuids) {
                 return null;
             }
 
             // Find child with matching name
-            const foundId = currentNode.children_ids.find(childId => {
+            const foundId = currentNode.children_uuids.find(childId => {
                 const childNode = this.nodes[childId];
                 return childNode && childNode.fs_entry && childNode.fs_entry.name === part;
             });
@@ -185,9 +185,9 @@ class FSTree {
             throw new Error(`Not a directory: ${path}`);
         }
 
-        // Get children by their IDs
-        const childrenIds = node.children_ids || [];
-        return childrenIds
+        // Get children by their UUIDs
+        const childrenUuids = node.children_uuids || [];
+        return childrenUuids
             .map(childId => this.nodes[childId])
             .filter(childNode => childNode && childNode.fs_entry)
             .map(childNode => childNode.fs_entry);
@@ -236,19 +236,19 @@ class FSTree {
         }
 
         const newNode = {
-            id: fs_entry.uid,
+            uuid: fs_entry.uid,
             merkle_hash: 0,
-            parent_id: fs_entry.parent_uid,
+            parent_uuid: fs_entry.parent_uid,
             fs_entry: fs_entry,
-            children_ids: []
+            children_uuids: []
         };
 
         this.nodes[fs_entry.uid] = newNode;
 
-        if (!parentNode.children_ids) {
-            parentNode.children_ids = [];
+        if (!parentNode.children_uuids) {
+            parentNode.children_uuids = [];
         }
-        parentNode.children_ids.push(fs_entry.uid);
+        parentNode.children_uuids.push(fs_entry.uid);
 
         await this.recalculateAncestorHashes(fs_entry.uid);
 

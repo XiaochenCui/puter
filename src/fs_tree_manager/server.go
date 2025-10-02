@@ -9,6 +9,7 @@ import (
 	"net"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,17 +28,17 @@ type server struct {
 }
 
 // calculateMerkleHash calculates the MerkleHash for a node based on its attributes and children hashes
-func calculateMerkleHash(node *pb.MerkleNode, childrenHashes []uint64) uint64 {
+func calculateMerkleHash(node *pb.MerkleNode, childrenHashes []uint64) string {
 	// Create a hash object
 	hasher := xxhash.New()
 
 	{
 		metadataBytes, _ := json.Marshal(node.FsEntry.Metadata.AsMap())
 		log.Printf("debug_metadata: %s", string(metadataBytes))
-		debug_hasher := xxhash.New()
-		debug_hasher.Write(metadataBytes)
-		debug_hash := debug_hasher.Sum64()
-		log.Printf("debug_hash: %d", debug_hash)
+		debugHasher := xxhash.New()
+		debugHasher.Write(metadataBytes)
+		debugHash := debugHasher.Sum64()
+		log.Printf("debug_hash: %d", debugHash)
 	}
 
 	// Add self attributes to the hash
@@ -61,15 +62,16 @@ func calculateMerkleHash(node *pb.MerkleNode, childrenHashes []uint64) uint64 {
 	}
 
 	hash := hasher.Sum64()
-	log.Printf("node %s hash: %d", node.FsEntry.Metadata.AsMap()["path"], hash)
-	return hash
+	hashStr := fmt.Sprintf("%d", hash)
+	log.Printf("node %s hash: %s", node.FsEntry.Metadata.AsMap()["path"], hashStr)
+	return hashStr
 }
 
 // calculateTreeMerkleHashes calculates MerkleHash for all nodes in the tree (bottom-up)
 func calculateTreeMerkleHashes(tree *pb.MerkleTree) {
 	// First pass: calculate hashes for leaf nodes (nodes with no children)
 	for _, node := range tree.Nodes {
-		if len(node.ChildrenIds) == 0 {
+		if len(node.ChildrenUuids) == 0 {
 			node.MerkleHash = calculateMerkleHash(node, []uint64{})
 		}
 	}
@@ -81,26 +83,29 @@ func calculateTreeMerkleHashes(tree *pb.MerkleTree) {
 	for {
 		allProcessed := true
 		for _, node := range tree.Nodes {
-			if processed[node.Id] {
+			if processed[node.Uuid] {
 				continue
 			}
 
 			// Check if all children have been processed
 			allChildrenProcessed := true
-			childrenHashes := make([]uint64, 0, len(node.ChildrenIds))
-			for _, childID := range node.ChildrenIds {
+			childrenHashes := make([]uint64, 0, len(node.ChildrenUuids))
+			for _, childID := range node.ChildrenUuids {
 				if child, exists := tree.Nodes[childID]; exists {
 					if !processed[childID] {
 						allChildrenProcessed = false
 						break
 					}
-					childrenHashes = append(childrenHashes, child.MerkleHash)
+					// Convert string hash back to uint64 for hashing
+					if hashVal, err := strconv.ParseUint(child.MerkleHash, 10, 64); err == nil {
+						childrenHashes = append(childrenHashes, hashVal)
+					}
 				}
 			}
 
 			if allChildrenProcessed {
 				node.MerkleHash = calculateMerkleHash(node, childrenHashes)
-				processed[node.Id] = true
+				processed[node.Uuid] = true
 			} else {
 				allProcessed = false
 			}
@@ -123,21 +128,24 @@ func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
 			break
 		}
 
-		childrenHashes := make([]uint64, 0, len(currentNode.ChildrenIds))
-		for _, childID := range currentNode.ChildrenIds {
-			if child, exists := tree.Nodes[childID]; exists && child.MerkleHash != 0 {
-				childrenHashes = append(childrenHashes, child.MerkleHash)
+		childrenHashes := make([]uint64, 0, len(currentNode.ChildrenUuids))
+		for _, childID := range currentNode.ChildrenUuids {
+			if child, exists := tree.Nodes[childID]; exists && child.MerkleHash != "" {
+				// Convert string hash back to uint64 for hashing
+				if hashVal, err := strconv.ParseUint(child.MerkleHash, 10, 64); err == nil {
+					childrenHashes = append(childrenHashes, hashVal)
+				}
 			}
 		}
 
 		currentNode.MerkleHash = calculateMerkleHash(currentNode, childrenHashes)
 
-		currentNodeID = currentNode.ParentId
+		currentNodeID = currentNode.ParentUuid
 	}
 }
 
 // FetchReplica implements the FSTreeManager service
-func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) (*pb.FetchReplicaResponse, error) {
+func (s *server) FetchReplica(ctx context.Context, req *pb.UserName) (*pb.MerkleTree, error) {
 	log.Printf("=== gRPC Request Received ===")
 	log.Printf("Method: FetchReplica")
 	log.Printf("User: %s", req.UserName)
@@ -152,8 +160,8 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 		tree = cachedTree
 		log.Printf("=== Using Cached Tree ===")
 		log.Printf("Username: %s", req.UserName)
-		log.Printf("Root ID: %s", tree.RootId)
-		log.Printf("Root Hash: %d", tree.Nodes[tree.RootId].MerkleHash)
+		log.Printf("Root UUID: %s", tree.RootUuid)
+		log.Printf("Root Hash: %s", tree.Nodes[tree.RootUuid].MerkleHash)
 		log.Printf("=========================")
 	} else {
 		// Query the database for the user's filesystem entries
@@ -166,20 +174,18 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 		s.trees[req.UserName] = tree
 		log.Printf("=== Built and Cached Tree ===")
 		log.Printf("Username: %s", req.UserName)
-		log.Printf("Root ID: %s", tree.RootId)
-		log.Printf("Root Hash: %d", tree.Nodes[tree.RootId].MerkleHash)
+		log.Printf("Root UUID: %s", tree.RootUuid)
+		log.Printf("Root Hash: %s", tree.Nodes[tree.RootUuid].MerkleHash)
 		log.Printf("=============================")
 	}
 
 	log.Printf("=== MerkleTree Response ===")
 	log.Printf("Username: %s", req.UserName)
-	log.Printf("Root ID: %s", tree.RootId)
-	log.Printf("Root Hash: %d", tree.Nodes[tree.RootId].MerkleHash)
+	log.Printf("Root UUID: %s", tree.RootUuid)
+	log.Printf("Root Hash: %s", tree.Nodes[tree.RootUuid].MerkleHash)
 	log.Printf("=========================")
 
-	return &pb.FetchReplicaResponse{
-		Tree: tree,
-	}, nil
+	return tree, nil
 }
 
 // extractUsernameFromPath extracts the username from a path like /admin/Desktop/New -> admin
@@ -200,10 +206,10 @@ func extractUsernameFromPath(path string) (string, error) {
 	return username, nil
 }
 
-// NewDirectory implements the FSTreeManager service
-func (s *server) NewDirectory(ctx context.Context, req *pb.FSEntry) (*emptypb.Empty, error) {
+// NewFSEntry implements the FSTreeManager service
+func (s *server) NewFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.Empty, error) {
 	log.Printf("=== gRPC Request Received ===")
-	log.Printf("Method: NewDirectory")
+	log.Printf("Method: NewFSEntry")
 	log.Printf("Metadata: %v", req.Metadata)
 	log.Printf("Timestamp: %s", time.Now().Format(time.RFC3339))
 	log.Printf("=============================")
@@ -228,12 +234,11 @@ func (s *server) NewDirectory(ctx context.Context, req *pb.FSEntry) (*emptypb.Em
 		tree = cachedTree
 		log.Printf("=== Using Cached Tree ===")
 		log.Printf("Username: %s", username)
-		log.Printf("Root ID: %s", tree.RootId)
-		log.Printf("Root Hash: %d", tree.Nodes[tree.RootId].MerkleHash)
+		log.Printf("Root UUID: %s", tree.RootUuid)
+		log.Printf("Root Hash: %s", tree.Nodes[tree.RootUuid].MerkleHash)
 		log.Printf("=========================")
 	} else {
 		log.Printf("No cached tree found for user %s", username)
-		panic(fmt.Sprintf("No cached tree found for user %s", username))
 		tree, err = s.buildUserFSTree(username)
 		if err != nil {
 			log.Printf("Error building FS tree for user %s: %v", username, err)
@@ -242,12 +247,12 @@ func (s *server) NewDirectory(ctx context.Context, req *pb.FSEntry) (*emptypb.Em
 		s.trees[username] = tree
 		log.Printf("=== Built and Cached Tree ===")
 		log.Printf("Username: %s", username)
-		log.Printf("Root ID: %s", tree.RootId)
-		log.Printf("Root Hash: %d", tree.Nodes[tree.RootId].MerkleHash)
+		log.Printf("Root UUID: %s", tree.RootUuid)
+		log.Printf("Root Hash: %s", tree.Nodes[tree.RootUuid].MerkleHash)
 		log.Printf("=============================")
 	}
 
-	// Extract directory information from metadata
+	// Extract entry information from metadata
 	uid, ok := metadataMap["uid"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid metadata: missing uid")
@@ -264,38 +269,157 @@ func (s *server) NewDirectory(ctx context.Context, req *pb.FSEntry) (*emptypb.Em
 		return nil, fmt.Errorf("parent directory not found: %s", parentUID)
 	}
 
-	// Create new directory node
+	// Create new entry node
 	newNode := &pb.MerkleNode{
-		Id:          uid,
-		MerkleHash:  0, // Will be calculated below
-		ParentId:    parentUID,
-		FsEntry:     req,
-		ChildrenIds: []string{},
+		Uuid:          uid,
+		MerkleHash:    "", // Will be calculated below
+		ParentUuid:    parentUID,
+		FsEntry:       req,
+		ChildrenUuids: []string{},
 	}
 
 	// Add to nodes map
 	tree.Nodes[uid] = newNode
 
-	// Add to parent's children_ids
-	parentNode.ChildrenIds = append(parentNode.ChildrenIds, uid)
+	// Add to parent's children_uuids
+	parentNode.ChildrenUuids = append(parentNode.ChildrenUuids, uid)
 
-	// Calculate Merkle hash for the new directory (empty children)
+	// Calculate Merkle hash for the new entry (empty children)
 	newNode.MerkleHash = calculateMerkleHash(newNode, []uint64{})
 
 	// Recalculate Merkle hashes for all ancestors
 	recalculateAncestorHashes(tree, uid)
 
 	// Print root hash for this user
-	rootNode, exists := tree.Nodes[tree.RootId]
+	rootNode, exists := tree.Nodes[tree.RootUuid]
 	if exists {
-		log.Printf("=== New Directory Created ===")
+		log.Printf("=== New FSEntry Created ===")
 		log.Printf("Username: %s", username)
-		log.Printf("Root ID: %s", tree.RootId)
-		log.Printf("Root Hash: %d", rootNode.MerkleHash)
+		log.Printf("Root UUID: %s", tree.RootUuid)
+		log.Printf("Root Hash: %s", rootNode.MerkleHash)
 		log.Printf("=============================")
 	}
 
-	log.Printf("Successfully created directory %s in parent %s", uid, parentUID)
+	log.Printf("Successfully created FSEntry %s in parent %s", uid, parentUID)
+	return &emptypb.Empty{}, nil
+}
+
+// RemoveFSEntry implements the FSTreeManager service
+func (s *server) RemoveFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.Empty, error) {
+	log.Printf("=== gRPC Request Received ===")
+	log.Printf("Method: RemoveFSEntry")
+	log.Printf("Metadata: %v", req.Metadata)
+	log.Printf("Timestamp: %s", time.Now().Format(time.RFC3339))
+	log.Printf("=============================")
+
+	// Extract username from path
+	metadataMap := req.Metadata.AsMap()
+	path, ok := metadataMap["path"].(string)
+	if !ok {
+		log.Printf("Invalid metadata: missing path information")
+		return nil, fmt.Errorf("invalid metadata: missing path information")
+	}
+	username, pathErr := extractUsernameFromPath(path)
+	if pathErr != nil {
+		log.Printf("Error extracting username from path %s: %v", path, pathErr)
+		return nil, fmt.Errorf("error extracting username from path: %v", pathErr)
+	}
+
+	// Get tree for this user
+	tree, exists := s.trees[username]
+	if !exists {
+		log.Printf("No cached tree found for user %s", username)
+		return nil, fmt.Errorf("no cached tree found for user %s", username)
+	}
+
+	// Extract entry information from metadata
+	uid, ok := metadataMap["uid"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid metadata: missing uid")
+	}
+
+	// Find the entry to remove
+	node, exists := tree.Nodes[uid]
+	if !exists {
+		return nil, fmt.Errorf("entry not found: %s", uid)
+	}
+
+	// Remove from parent's children_uuids
+	if node.ParentUuid != "" {
+		if parentNode, parentExists := tree.Nodes[node.ParentUuid]; parentExists {
+			// Remove the uid from parent's children list
+			for i, childUUID := range parentNode.ChildrenUuids {
+				if childUUID == uid {
+					parentNode.ChildrenUuids = append(parentNode.ChildrenUuids[:i], parentNode.ChildrenUuids[i+1:]...)
+					break
+				}
+			}
+		}
+	}
+
+	// Remove the node from the tree
+	delete(tree.Nodes, uid)
+
+	// Recalculate Merkle hashes for all ancestors
+	if node.ParentUuid != "" {
+		recalculateAncestorHashes(tree, node.ParentUuid)
+	}
+
+	// Print root hash for this user
+	rootNode, exists := tree.Nodes[tree.RootUuid]
+	if exists {
+		log.Printf("=== FSEntry Removed ===")
+		log.Printf("Username: %s", username)
+		log.Printf("Root UUID: %s", tree.RootUuid)
+		log.Printf("Root Hash: %s", rootNode.MerkleHash)
+		log.Printf("=============================")
+	}
+
+	log.Printf("Successfully removed FSEntry %s", uid)
+	return &emptypb.Empty{}, nil
+}
+
+// PullDiff implements the FSTreeManager service
+func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
+	log.Printf("=== gRPC Request Received ===")
+	log.Printf("Method: PullDiff")
+	log.Printf("Timestamp: %s", time.Now().Format(time.RFC3339))
+	log.Printf("PullRequest Items Count: %d", len(req.PullRequest))
+
+	// Print each pull request item
+	for i, item := range req.PullRequest {
+		log.Printf("  Item %d:", i+1)
+		log.Printf("    UUID: %s", item.Uuid)
+		log.Printf("    Merkle Hash: %s", item.MerkleHash)
+	}
+	log.Printf("=============================")
+
+	// For now, return an empty PushRequest
+	// In a real implementation, this would compare the requested items
+	// with the current state and return the differences
+	response := &pb.PushRequest{
+		PushRequest: []*pb.PushRequestItem{},
+	}
+
+	log.Printf("=== PullDiff Response ===")
+	log.Printf("PushRequest Items Count: %d", len(response.PushRequest))
+	log.Printf("=========================")
+
+	return response, nil
+}
+
+// PurgeReplica implements the FSTreeManager service
+func (s *server) PurgeReplica(ctx context.Context, req *pb.UserName) (*emptypb.Empty, error) {
+	log.Printf("=== gRPC Request Received ===")
+	log.Printf("Method: PurgeReplica")
+	log.Printf("User: %s", req.UserName)
+	log.Printf("Timestamp: %s", time.Now().Format(time.RFC3339))
+	log.Printf("=============================")
+
+	// Remove the cached tree for this user
+	delete(s.trees, req.UserName)
+
+	log.Printf("Successfully purged replica for user %s", req.UserName)
 	return &emptypb.Empty{}, nil
 }
 
@@ -423,7 +547,7 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 	parentChildMap := make(map[string][]string)
 
 	// Find the actual user root directory (should be exactly "/username")
-	var rootID string
+	var rootUUID string
 
 	// Process all entries
 	for rows.Next() {
@@ -466,9 +590,9 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 
 		// Create the MerkleNode (MerkleHash will be calculated later)
 		node := &pb.MerkleNode{
-			Id:         uuid,
-			MerkleHash: 0, // Will be calculated after children are set
-			ParentId:   parentUIDStr,
+			Uuid:       uuid,
+			MerkleHash: "", // Will be calculated after children are set
+			ParentUuid: parentUIDStr,
 			FsEntry:    &pb.FSEntry{Metadata: metadataStruct},
 		}
 
@@ -482,26 +606,26 @@ func (s *server) buildUserFSTree(userName string) (*pb.MerkleTree, error) {
 
 		// Check if this is the root directory by looking at the path
 		if path == rootPath {
-			rootID = uuid
+			rootUUID = uuid
 		}
 	}
 
-	// Build the tree structure by setting children_ids for each node
+	// Build the tree structure by setting children_uuids for each node
 	for parentUUID, childUUIDs := range parentChildMap {
 		if parent, exists := nodes[parentUUID]; exists {
-			parent.ChildrenIds = childUUIDs
+			parent.ChildrenUuids = childUUIDs
 		}
 	}
 
 	// If no root directory found, return error
-	if rootID == "" {
+	if rootUUID == "" {
 		return nil, fmt.Errorf("user root directory not found: %s", rootPath)
 	}
 
 	// Create the MerkleTree with the nodes map
 	tree := &pb.MerkleTree{
-		RootId: rootID,
-		Nodes:  nodes,
+		RootUuid: rootUUID,
+		Nodes:    nodes,
 	}
 
 	// Calculate MerkleHash for all nodes in the tree (bottom-up)

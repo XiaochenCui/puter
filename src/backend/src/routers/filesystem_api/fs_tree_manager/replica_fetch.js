@@ -47,16 +47,16 @@ module.exports = {
       FSTreeManagerClient
     } = require(path.join(genDir, 'fs_tree_manager_grpc_pb.js'));
     const {
-      FetchReplicaRequest
+      UserName
     } = require(path.join(genDir, 'fs_tree_manager_pb.js'));
 
     const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.createInsecure());
 
     // Build the request message
-    const requestMsg = new FetchReplicaRequest();
+    const requestMsg = new UserName();
     requestMsg.setUserName(socket.user.username);
 
-    client.fetchReplica(requestMsg, (err, resp) => {
+    client.FetchReplica(requestMsg, (err, resp) => {
       if (err) {
         log.error('FetchReplica error:', err);
         return socket.emit('replica/fetch/error', {
@@ -66,20 +66,20 @@ module.exports = {
       }
 
       // Convert protobuf response to plain JavaScript
-      const tree = resp.getTree();
+      // The response is directly a MerkleTree, not wrapped in another object
       
-      // Get the nodes map and root ID
-      const nodesMap = tree.getNodesMap();
-      const rootId = tree.getRootId();
+      // Get the nodes map and root UUID
+      const nodesMap = resp.getNodesMap();
+      const rootUuid = resp.getRootUuid();
       
       // Convert nodes map to plain JavaScript object
       const nodes = {};
-      nodesMap.forEach((node, nodeId) => {
-        nodes[nodeId] = {
-          id: node.getId(),
+      nodesMap.forEach((node, nodeUuid) => {
+        nodes[nodeUuid] = {
+          uuid: node.getUuid(),
           merkle_hash: node.getMerkleHash(),
-          children_ids: node.getChildrenIdsList(),
-          parent_id: node.getParentId(),
+          children_uuids: node.getChildrenUuidsList(),
+          parent_uuid: node.getParentUuid(),
           fs_entry: node.getFsEntry() ? node.getFsEntry().getMetadata().toJavaScript() : {}
         };
       });
@@ -87,7 +87,7 @@ module.exports = {
       socket.emit('replica/fetch/success', {
         success: true,
         data: {
-          root_id: rootId,
+          root_uuid: rootUuid,
           nodes: nodes
         }
       });

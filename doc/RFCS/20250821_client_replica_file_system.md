@@ -48,51 +48,55 @@ In our implementation, we use two key ideas:
 
 Both initialization and synchronization are done via websocket to save network traffic.
 
+Initial fetch is done via websocket event `replica/fetch`.
+
 ### Client-Replica Synchronization
 
-Both initialization and synchronization are done via websocket to save network traffic.
+Since CRDT is not used, synchronization between client and server is one-way — the client only fetches changes from the server. Each node in the tree includes a `hash` field that is the hash of **all its children's hashes + its own metadata**. So its safe to say 2 trees are the same if and only if their root nodes have the same hash.
+
+Synchronize is done via websocket event `replica/pull_diff`.
 
 Client start a sync by sending a request to the server:
 
 ```json
 {
-  "pull_requests": [
+  "pull_request": [
     {
       "uuid": "<uuid>",
-      "hash": "<hash>"
+      "merkle_hash": "<hash>"
     }
   ]
 }
 ```
 
-Server send push requests when there are differences between the client and server.
+Server send push requests when there are differences between the client and server. This action is simple, just send requested nodes and their children to the client.
 
 ```json
 {
-  "push_requests": [
+  "push_request": [
     {
-      "path": "/Tim",
-      "hash": "<hash>",
+      "uuid": "<uuid>",
+      "merkle_hash": "<hash>",
       "fs_entry": "...",
       "children": [
         {
-          "path": "/Tim/same_1",
-          "hash": "<hash>",
+          "uuid": "<same_1>",
+          "merkle_hash": "<hash>",
           "fs_entry": "..."
         },
         {
-          "path": "/Tim/same_2",
-          "hash": "<hash>",
+          "uuid": "<same_2>",
+          "merkle_hash": "<hash>",
           "fs_entry": "..."
         },
         {
-          "path": "/Tim/diff_1",
-          "hash": "<hash>",
+          "uuid": "<diff_1>",
+          "merkle_hash": "<hash>",
           "fs_entry": "..."
         },
         {
-          "path": "/Tim/diff_2",
-          "hash": "<hash>",
+          "uuid": "<diff_2>",
+          "merkle_hash": "<hash>",
           "fs_entry": "..."
         }
       ]
@@ -102,105 +106,14 @@ Server send push requests when there are differences between the client and serv
 ```
 
 Client does the following actions in sequence:
-1. 
-
-```json
-{
-  "pull_requests": [
-    {
-      "path": "/Tim",
-      "hash": "<hash>",
-      "children": [
-        {
-          "name": "diff_1",
-          "hash": ""
-        },
-        {
-          "name": "diff_2",
-          "hash": ""
-        }
-      ]
-    }
-  ]
-}
-```
-
-Server get the pull requests and send the children of leaf nodes to the client.
-
-### Client-side Replica
-
-#### Initialization
-
-The client will fetch all nodes under a user's home directory once the user is logged in by `puter.fs.replica.fetch(<path>)`.
-
-HTTP endpoint: `/api/fs/replica/fetch`
-
-POST arguments:
-- `path`: The path to fetch the replica tree for (e.g., "/Tim")
-
-#### Endpoint: `/api/fs/replica/fetch`
-
-##### Request
-
-**Method:** `POST`  
-**Content-Type:** `application/json`
-
-##### Request Body
-```json
-{
-  "path": "/Tim"
-}
-```
-
-##### Parameters
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `path` | string | Yes | The path to fetch the replica tree for (e.g., "/Tim") |
-
-##### Success Response (200 OK)
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/Tim",
-    "hash": "<hash>",
-    "children": [
-      {
-        "name": "<name>",
-        "hash": "<hash>",
-        "metadata": {
-          ...
-        },
-        "children": [
-          {
-            "name": "<name>",
-            "hash": "<hash>",
-            "metadata": {
-              ...
-            }
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-##### Error Response (500 Internal Server Error)
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INTERNAL_ERROR",
-    "message": "Failed to build filesystem tree"
-  }
-}
-```
-
-message can be:
-
-- `SERVICE_UNAVAILABLE`: FS-Tree Manager is not available.
-- `TREE_UNAVAILABLE`: FS-Tree Manager is not able to provide this tree.
+1. Update the fs_entry for the level-1 node.
+2. Compare the children list with the client-replica.
+  2.a For nodes with the same uuid and hash, skip.
+  2.b For nodes with the same uuid and different hash, update the fs_entry for the node. Then add the node to the next pull request (as level-1 node).
+  2.c For nodes that missing from the server response, remove it and all its ancestors from the local replica.
+  2.d For nodes that missing from the client-replica, add it the local replica. Then add the node to the next pull request (as level-1 node).
+3. Send the next pull request to the server if there are any nodes to update.
+4. Stop when 1) there are no nodes to update or 2) the server response is empty.
 
 There are some details to consider:
 
@@ -208,7 +121,7 @@ There are some details to consider:
 - Initialization Time: According to the data size mentioned above, the initialization will finish within 1 second. But it's still great to put it in a background task to avoid blocking the UI thread.
 - Permission: Permission check should be enforced on both client side and server side. A user can only fetch the tree started from his home directory. A simpler design is to remove the args from `puter.fs.fetch_tree` and make it "fetch all files for the current user".
 
-#### File System Operations Upon Fetching
+### File System Operations Upon Fetching
 
 To make the system consistent, the local replica will work with all existing file system APIs except `read` and `write`. A simple implementation is to have a switch branch for local replica:
 
@@ -223,171 +136,6 @@ const readdir = async function (...args) {
     // ... (existing code which fetches from server)
 }
 ```
-
-### Synchronize Changes
-
-Since CRDT is not used, synchronization between client and server is one-way — the client only fetches changes from the server. Each node in the tree includes a `hash` field that is the hash of **all its children's hashes + its own metadata**. So its safe to say 2 trees are the same if and only if their root nodes have the same hash.
-
-Synchronize is done via HTTP endpoint `/api/fs/replica/sync`.
-
-Here is an example of a complete cycle of sync:
-
-1. Client initiates a sync process by sending a request to the server:
-
-```json
-{
-  "pull_requests": [
-    {
-      "path": "/Tim",
-      "hash": "<hash>"
-    }
-  ]
-}
-```
-
-2. The server compares this tree with its own replica:
-
-```json
-{
-  "path": "/Tim",
-  "hash": "<hash>",
-  "children": [...]
-}
-```
-
-Where `children` contains some updates from other sessions, which makes the server have a different `hash`.
-
-3. The server sends the following response to the client:
-
-```json
-{
-  "push_requests": [
-    {
-      "path": "/Tim",
-      "hash": "<hash>",
-      "children": [
-        {
-          "name": "same_tree",
-          "hash": "<hash>"
-        },
-        {
-          "name": "client_newer",
-          "hash": "<hash>"
-        },
-        {
-          "name": "server_newer",
-          "hash": "<hash>"
-        },
-        {
-          "name": "server_only",
-          "hash": "<hash>"
-        }
-      ]
-    }
-  ]
-}
-```
-
-An empty `push_requests` means there are no differences to sync:
-
-```json
-{
-  "push_requests": []
-}
-```
-
-4. The client receives this `push_requests` and compare it with its own replica:
-
-```json
-{
-  "path": "/Tim",
-  "hash": "<hash>",
-  "children": [
-    {
-      "name": "same_tree",
-      "hash": "<hash>"
-    },
-    {
-      "name": "client_newer",
-      "hash": "<hash>"
-    },
-    {
-      "name": "server_newer",
-      "hash": "<hash>"
-    },
-    {
-      "name": "client_only",
-      "hash": "<hash>"
-    }
-  ]
-}
-```
-
-Explanation:
-
-* `/Tim/same_tree` — the contents are identical on both the client and the server.
-* `/Tim/client_newer` — the client version is newer than the server version (different `<hash>`).
-* `/Tim/server_newer` — the server version is newer than the client version (different `<hash>`).
-* `/Tim/server_only` — exists on the server but not on the client.
-* `/Tim/client_only` — exists on the client but not on the server.
-
-5. The client sends the following request to the server:
-
-```json
-{
-  "pull_requests": [
-    {
-      "path": "/Tim",
-      "hash": "<hash>",
-      "children": [
-        {
-          "name": "server_newer",
-          "hash": "<hash>"
-        },
-        {
-          "name": "server_only",
-          "hash": "<hash>"
-        }
-      ]
-    }
-  ]
-}
-```
-
-6. The server responds with `push_requests`:
-
-```json
-{
-  "push_requests": [
-    {
-      "path": "/Tim",
-      "hash": "<hash>",
-      "children": [
-        {
-          "name": "server_newer",
-          "hash": "<hash>",
-          "metadata": {
-            "uuid": "<uuid>",
-            "is_dir": "<is_dir>",
-            "...": "..."
-          }
-        },
-        {
-          "name": "server_only",
-          "hash": "<hash>",
-          "metadata": {
-            "uuid": "<uuid>",
-            "is_dir": "<is_dir>",
-            "...": "..."
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-- Both server and client will store a `last_update_time` for their own replica, and the client will send it to the server in the sync request. For now, the server push changes even the client replica is newer. We will track the frequency of "sync request from a newer replica" and decide whether to reject the sync request from a newer replica.
 
 ### FS-Tree Manager
 

@@ -246,13 +246,22 @@ class ReplicaManager {
             const rootNode = window.FSTree.nodes[window.FSTree.rootId];
             if (rootNode && rootNode.merkle_hash) {
                 console.log('ready to pull diff');
-                this.socket.emit('replica/pull_diff', {
-                    hash: rootNode.merkle_hash,
-                    timestamp: Date.now()
-                });
-                console.log('pull diff emitted');
+                
+                // Create PullRequest format according to proto definition
+                const pullRequest = {
+                    pull_request: [
+                        {
+                            uuid: rootNode.uuid,
+                            merkle_hash: rootNode.merkle_hash
+                        }
+                    ]
+                };
+                
+                this.socket.emit('replica/pull_diff', pullRequest);
+                console.log('pull diff emitted with PullRequest format:', pullRequest);
             }
         } catch (error) {
+            console.error('Error in pullDiff:', error);
             this.stopPullDiff();
         }
     }

@@ -28,6 +28,28 @@ function deserialize_fs_tree_manager_MerkleTree(buffer_arg) {
   return fs_tree_manager_pb.MerkleTree.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
+function serialize_fs_tree_manager_PullRequest(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.PullRequest)) {
+    throw new Error('Expected argument of type fs_tree_manager.PullRequest');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_fs_tree_manager_PullRequest(buffer_arg) {
+  return fs_tree_manager_pb.PullRequest.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
+function serialize_fs_tree_manager_PushRequest(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.PushRequest)) {
+    throw new Error('Expected argument of type fs_tree_manager.PushRequest');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_fs_tree_manager_PushRequest(buffer_arg) {
+  return fs_tree_manager_pb.PushRequest.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
 function serialize_fs_tree_manager_UserName(arg) {
   if (!(arg instanceof fs_tree_manager_pb.UserName)) {
     throw new Error('Expected argument of type fs_tree_manager.UserName');
@@ -62,6 +84,17 @@ var FSTreeManagerService = exports.FSTreeManagerService = {
     requestDeserialize: deserialize_fs_tree_manager_UserName,
     responseSerialize: serialize_fs_tree_manager_MerkleTree,
     responseDeserialize: deserialize_fs_tree_manager_MerkleTree,
+  },
+  pullDiff: {
+    path: '/fs_tree_manager.FSTreeManager/PullDiff',
+    requestStream: false,
+    responseStream: false,
+    requestType: fs_tree_manager_pb.PullRequest,
+    responseType: fs_tree_manager_pb.PushRequest,
+    requestSerialize: serialize_fs_tree_manager_PullRequest,
+    requestDeserialize: deserialize_fs_tree_manager_PullRequest,
+    responseSerialize: serialize_fs_tree_manager_PushRequest,
+    responseDeserialize: deserialize_fs_tree_manager_PushRequest,
   },
   // We provide simple New/Remove APIs as a straightforward way to accommodate
 // the wide variety of file system operations. For simplicity, these APIs do

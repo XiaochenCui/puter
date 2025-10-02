@@ -9,6 +9,7 @@ option go_package = "github.com/puter/fs_tree_manager";
 
 service FSTreeManager {
   rpc FetchReplica(UserName) returns (MerkleTree);
+  rpc PullDiff(PullRequest) returns (PushRequest);
 
   // We provide simple New/Remove APIs as a straightforward way to accommodate
   // the wide variety of file system operations. For simplicity, these APIs do
@@ -50,3 +51,19 @@ message MerkleTree {
 }
 
 message FSEntry { google.protobuf.Struct metadata = 1; }
+
+message PullRequest { repeated PullRequestItem pull_request = 1; }
+
+message PullRequestItem {
+  string uuid = 1;
+  string merkle_hash = 2;
+}
+
+message PushRequest { repeated PushRequestItem push_request = 1; }
+
+message PushRequestItem {
+  string uuid = 1;
+  string merkle_hash = 2;
+  FSEntry fs_entry = 3;
+  repeated PushRequestItem children = 4;
+}
