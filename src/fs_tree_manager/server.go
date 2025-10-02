@@ -265,21 +265,48 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 		return nil, fmt.Errorf("[user %s] no cached tree found", req.UserName)
 	}
 
-	for _, pullRequestItem := range req.PullRequest {
-		node, exists := cachedTree.Nodes[pullRequestItem.Uuid]
-		if !exists {
-			return nil, fmt.Errorf("[user %s] node not found: %s", req.UserName, pullRequestItem.Uuid)
-		}
-		if node.MerkleHash != pullRequestItem.MerkleHash {
-			log.Printf("[user %s] node %s merkle hash mismatch: %s != %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash, pullRequestItem.MerkleHash)
-		} else {
-			log.Printf("[user %s] node %s merkle hash matches: %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash)
-		}
-	}
-
 	response := &pb.PushRequest{
 		UserName:    req.UserName,
 		PushRequest: []*pb.PushRequestItem{},
+	}
+
+	for _, pullRequestItem := range req.PullRequest {
+		node, exists := cachedTree.Nodes[pullRequestItem.Uuid]
+		if !exists {
+			log.Printf("[user %s] node not found: %s", req.UserName, pullRequestItem.Uuid)
+			continue
+		}
+
+		// If hashes match, no need to send this node
+		if node.MerkleHash == pullRequestItem.MerkleHash {
+			log.Printf("[user %s] node %s merkle hash matches: %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash)
+			continue
+		}
+
+		log.Printf("[user %s] node %s merkle hash mismatch: %s != %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash, pullRequestItem.MerkleHash)
+
+		// Create push request item with node and its children
+		pushItem := &pb.PushRequestItem{
+			Uuid:       node.Uuid,
+			MerkleHash: node.MerkleHash,
+			FsEntry:    node.FsEntry,
+			Children:   []*pb.PushRequestItem{},
+		}
+
+		// Add all children
+		for _, childUUID := range node.ChildrenUuids {
+			if childNode, childExists := cachedTree.Nodes[childUUID]; childExists {
+				childPushItem := &pb.PushRequestItem{
+					Uuid:       childNode.Uuid,
+					MerkleHash: childNode.MerkleHash,
+					FsEntry:    childNode.FsEntry,
+					Children:   []*pb.PushRequestItem{},
+				}
+				pushItem.Children = append(pushItem.Children, childPushItem)
+			}
+		}
+
+		response.PushRequest = append(response.PushRequest, pushItem)
 	}
 
 	return response, nil

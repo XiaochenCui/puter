@@ -1,13 +1,11 @@
 import * as utils from '../../../lib/utils.js';
 import getAbsolutePathForApp from '../utils/getAbsolutePathForApp.js';
 
-const readdir = async function (...args) {
-    console.log('readdir', args);
-
+const readdir = async function(...args) {
     let options;
 
     // If first argument is an object, it's the options
-    if (typeof args[0] === 'object' && args[0] !== null) {
+    if ( typeof args[0] === 'object' && args[0] !== null ) {
         options = args[0];
     } else {
         // Otherwise, we assume separate arguments are provided
@@ -18,18 +16,18 @@ const readdir = async function (...args) {
         };
     }
 
-    if (puter.fs.replica.available) {
+    if ( puter.fs.replica.available ) {
         const homePath = window.FSTree.root;
-        if (options.path && options.path.startsWith(homePath)) {
+        if ( options.path && options.path.startsWith(homePath) ) {
             return new Promise(async (resolve, reject) => {
                 try {
                     const result = await window.FSTree.readdir(options);
-                    if (options.success) {
+                    if ( options.success ) {
                         options.success(result);
                     }
                     resolve(result);
-                } catch (error) {
-                    if (options.error) {
+                } catch( error ) {
+                    if ( options.error ) {
                         options.error(error);
                     }
                     reject(error);
@@ -40,45 +38,45 @@ const readdir = async function (...args) {
 
     return new Promise(async (resolve, reject) => {
         // consistency levels
-        if (!options.consistency) {
+        if ( !options.consistency ) {
             options.consistency = 'strong';
         }
 
         // Either path or uid is required
-        if (!options.path && !options.uid) {
+        if ( !options.path && !options.uid ) {
             throw new Error({ code: 'NO_PATH_OR_UID', message: 'Either path or uid must be provided.' });
         }
 
         // Generate cache key based on path or uid
         let cacheKey;
-        if (options.path) {
+        if ( options.path ) {
             cacheKey = 'readdir:' + options.path;
-        } else if (options.uid) {
+        } else if ( options.uid ) {
             cacheKey = 'readdir:' + options.uid;
         }
 
-        if (options.consistency === 'eventual') {
+        if ( options.consistency === 'eventual' ) {
             // Check cache
             const cachedResult = await puter._cache.get(cacheKey);
-            if (cachedResult) {
+            if ( cachedResult ) {
                 resolve(cachedResult);
                 return;
             }
         }
 
-        // If auth token is not provided and we are in the web environment, 
+        // If auth token is not provided and we are in the web environment,
         // try to authenticate with Puter
-        if (!puter.authToken && puter.env === 'web') {
+        if ( !puter.authToken && puter.env === 'web' ) {
             try {
                 await puter.ui.authenticateWithPuter();
-            } catch (e) {
+            } catch( e ) {
                 // if authentication fails, throw an error
                 reject('Authentication failed.');
             }
         }
 
         // create xhr object
-        const xhr = utils.initXhr('/readdir', this.APIOrigin, undefined, "post", "text/plain;actually=json");
+        const xhr = utils.initXhr('/readdir', this.APIOrigin, undefined, 'post', 'text/plain;actually=json');
 
         // set up event handlers for load and error events
         utils.setupXhrEventHandlers(xhr, options.success, options.error, async (result) => {
@@ -89,13 +87,13 @@ const readdir = async function (...args) {
             const MAX_CACHE_SIZE = 20 * 1024 * 1024;
             const EXPIRE_TIME = 60 * 60; // 1 hour
 
-            if (resultSize <= MAX_CACHE_SIZE) {
+            if ( resultSize <= MAX_CACHE_SIZE ) {
                 // UPSERT the cache
                 await puter._cache.set(cacheKey, result, { EX: EXPIRE_TIME });
             }
 
             // set each individual item's cache
-            for (const item of result) {
+            for ( const item of result ) {
                 await puter._cache.set('item:' + item.id, item, { EX: EXPIRE_TIME });
                 await puter._cache.set('item:' + item.path, item, { EX: EXPIRE_TIME });
             }
@@ -107,18 +105,18 @@ const readdir = async function (...args) {
         const payload = {
             no_thumbs: options.no_thumbs,
             no_assocs: options.no_assocs,
-            auth_token: this.authToken
+            auth_token: this.authToken,
         };
 
         // Add either uid or path to the payload
-        if (options.uid) {
+        if ( options.uid ) {
             payload.uid = options.uid;
-        } else if (options.path) {
+        } else if ( options.path ) {
             payload.path = getAbsolutePathForApp(options.path);
         }
 
         xhr.send(JSON.stringify(payload));
-    })
-}
+    });
+};
 
 export default readdir;

@@ -24,6 +24,7 @@ const { HLFilesystemOperation } = require("./definitions");
 const { MkTree } = require("./hl_mkdir");
 const { HLRemove } = require("./hl_remove");
 const { LLCopy } = require("../ll_operations/ll_copy");
+const { sendFsNew } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
 
 class HLCopy extends HLFilesystemOperation {
     static DESCRIPTION = `
@@ -216,6 +217,10 @@ class HLCopy extends HLFilesystemOperation {
 
         await this.copied.awaitStableEntry();
         const response = await this.copied.getSafeEntry({ thumbnail: true });
+        
+        // emit fs update to fs_tree_manager
+        sendFsNew(response);
+        
         return {
             copied : response,
             overwritten

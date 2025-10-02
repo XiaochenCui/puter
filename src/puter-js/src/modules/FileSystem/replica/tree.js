@@ -18,11 +18,11 @@
  */
 
 import stringify from 'safe-stable-stringify';
-import xxhash from "xxhash-wasm";
+import xxhash from 'xxhash-wasm';
 
 class FSTree {
     constructor(data) {
-        if (!data) {
+        if ( !data ) {
             throw new Error('FSTree requires valid data to initialize');
         }
         this.tree = data;
@@ -31,10 +31,10 @@ class FSTree {
 
         // Get the root node to determine the root path
         const rootNode = this.nodes[this.rootId];
-        if (rootNode && rootNode.fs_entry) {
-            this.root = rootNode.fs_entry.path || "/";
+        if ( rootNode && rootNode.fs_entry ) {
+            this.root = rootNode.fs_entry.path || '/';
         } else {
-            this.root = "/";
+            this.root = '/';
         }
 
         // print the root path and hash
@@ -56,17 +56,14 @@ class FSTree {
 
         const hasher = create64(0n);
 
-        if (node.fs_entry) {
+        if ( node.fs_entry ) {
             const metadata = stringify(node.fs_entry);
-            console.log(`metadata: ${metadata}`);
             hasher.update(metadata);
         }
 
         // Sort children hashes as strings for consistency
         const sortedChildrenHashes = [...childrenHashes].sort();
-        console.log(`sortedChildrenHashes [${childrenHashes.length}]: ${sortedChildrenHashes}`);
-        for (const childHash of sortedChildrenHashes) {
-            console.log(`childBytes: ${childHash}`);
+        for ( const childHash of sortedChildrenHashes ) {
             hasher.update(childHash);
         }
 
@@ -82,23 +79,23 @@ class FSTree {
      */
     async recalculateAncestorHashes(nodeId) {
         const node = this.nodes[nodeId];
-        if (!node) {
+        if ( !node ) {
             return;
         }
 
         let currentNodeId = nodeId;
 
-        while (currentNodeId) {
+        while ( currentNodeId ) {
             const currentNode = this.nodes[currentNodeId];
-            if (!currentNode) {
+            if ( !currentNode ) {
                 break;
             }
 
             const childrenHashes = [];
-            if (currentNode.children_uuids) {
-                for (const childId of currentNode.children_uuids) {
+            if ( currentNode.children_uuids ) {
+                for ( const childId of currentNode.children_uuids ) {
                     const childNode = this.nodes[childId];
-                    if (childNode && childNode.merkle_hash) {
+                    if ( childNode && childNode.merkle_hash ) {
                         childrenHashes.push(childNode.merkle_hash);
                     }
                 }
@@ -122,9 +119,9 @@ class FSTree {
         const parts = path.split('/').filter(part => part !== '');
         let currentId = this.rootId;
 
-        for (const part of parts) {
+        for ( const part of parts ) {
             const currentNode = this.nodes[currentId];
-            if (!currentNode || !currentNode.children_uuids) {
+            if ( !currentNode || !currentNode.children_uuids ) {
                 return null;
             }
 
@@ -134,7 +131,7 @@ class FSTree {
                 return childNode && childNode.fs_entry && childNode.fs_entry.name === part;
             });
 
-            if (!foundId) {
+            if ( !foundId ) {
                 return null;
             }
             currentId = foundId;
@@ -155,7 +152,7 @@ class FSTree {
 
     /**
      * Read directory contents.
-     * 
+     *
      * @param {Object} options - Options object
      * @param {string} [options.path] - Path to read directory for
      * @param {string} [options.uid] - UUID to read directory for
@@ -166,19 +163,19 @@ class FSTree {
         const uid = options.uid;
         let node = null;
 
-        if (uid) {
+        if ( uid ) {
             node = this.findNodeByUUID(uid);
-        } else if (path) {
+        } else if ( path ) {
             node = this.findNodeByPath(path);
         } else {
             throw new Error('Either path or uid must be provided');
         }
 
-        if (!node) {
+        if ( !node ) {
             throw new Error(`Path not found: ${path}`);
         }
 
-        if (!node.fs_entry?.is_dir) {
+        if ( !node.fs_entry?.is_dir ) {
             throw new Error(`Not a directory: ${path}`);
         }
 
@@ -202,9 +199,9 @@ class FSTree {
         const uid = options.uid;
         let node = null;
 
-        if (uid) {
+        if ( uid ) {
             node = this.findNodeByUUID(uid);
-        } else if (path) {
+        } else if ( path ) {
             node = this.findNodeByPath(path);
         } else {
             throw new Error('Either path or uid must be provided');
@@ -218,31 +215,31 @@ class FSTree {
      * @param {Object} fs_entry - The fs_entry object of the new directory
      */
     async newDirectory(fs_entry) {
-        if (!fs_entry || !fs_entry.uid) {
+        if ( !fs_entry || !fs_entry.uid ) {
             throw new Error('Invalid fs_entry: must have uid');
         }
 
-        if (!fs_entry.is_dir) {
+        if ( !fs_entry.is_dir ) {
             throw new Error('fs_entry must be a directory');
         }
 
         // Find the parent directory by uid
         const parentNode = this.findNodeByUUID(fs_entry.parent_uid);
-        if (!parentNode) {
+        if ( !parentNode ) {
             throw new Error(`Parent directory not found: ${fs_entry.parent_uid}`);
         }
 
         const newNode = {
             uuid: fs_entry.uid,
-            merkle_hash: "",
+            merkle_hash: '',
             parent_uuid: fs_entry.parent_uid,
             fs_entry: fs_entry,
-            children_uuids: []
+            children_uuids: [],
         };
 
         this.nodes[fs_entry.uid] = newNode;
 
-        if (!parentNode.children_uuids) {
+        if ( !parentNode.children_uuids ) {
             parentNode.children_uuids = [];
         }
         parentNode.children_uuids.push(fs_entry.uid);

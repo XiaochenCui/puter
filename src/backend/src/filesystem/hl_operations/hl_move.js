@@ -24,6 +24,7 @@ const { HLFilesystemOperation } = require("./definitions");
 const { MkTree } = require("./hl_mkdir");
 const { HLRemove } = require("./hl_remove");
 const { TYPE_DIRECTORY } = require("../FSNodeContext");
+const { sendFsNew } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
 
 class HLMove extends HLFilesystemOperation {
     static MODULES = {
@@ -204,6 +205,9 @@ class HLMove extends HLFilesystemOperation {
         for ( const node of this.parent_directories_created ) {
             response.parent_dirs_created.push(await node.getSafeEntry());
         }
+
+        // emit fs update to fs_tree_manager
+        sendFsNew(response.moved);
 
         return response;
     }

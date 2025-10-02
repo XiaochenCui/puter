@@ -71,6 +71,9 @@ class WSPushService  extends BaseService {
 
         Object.assign(response, metadata);
 
+        // skip event broadcast to test client-replica sync
+        return;
+
         this.svc_event.emit('outer.gui.item.added', {
             user_id_list,
             response,

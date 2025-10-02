@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 const grpc = require('@grpc/grpc-js');
 const path = require('path');
@@ -6,39 +6,61 @@ const path = require('path');
 // gRPC generated code
 const genDir = path.join(__dirname, '../../../../../fs_tree_manager/js');
 const {
-    FSTreeManagerClient
+    FSTreeManagerClient,
 } = require(path.join(genDir, 'fs_tree_manager_grpc_pb.js'));
 const {
-    FSEntry
+    FSEntry,
 } = require(path.join(genDir, 'fs_tree_manager_pb.js'));
 
 // protobuf built-in types
-const { Struct } = require("google-protobuf/google/protobuf/struct_pb.js");
+const { Struct } = require('google-protobuf/google/protobuf/struct_pb.js');
 
 // Create gRPC client
 const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.createInsecure());
 
-const stringify = require('safe-stable-stringify');
-
 /**
- * Sends a filesystem update event to the gRPC service
- * @param {Object} fsUpdateEvent - The filesystem update event data
- * @param {Object} fsUpdateEvent.metadata - The metadata for the FSEntry
- * @returns {Promise<void>} - Resolves when the update is sent successfully
+ * Sends a new filesystem entry to the gRPC service
+ * @param {Object} metadata - The metadata for the FSEntry
+ * @returns {Promise<void>} - Resolves when the entry is sent successfully
  * @throws {Error} - If the gRPC call fails
  */
-async function sendFsUpdate(fsUpdateEvent) {
+async function sendFsNew(metadata) {
     return new Promise((resolve, reject) => {
-        if (!fsUpdateEvent.metadata) {
+        if ( !metadata ) {
             reject(new Error('Metadata is required'));
             return;
         }
 
-        const fsEntry = buildFsEntry(fsUpdateEvent.metadata);
+        const fsEntry = buildFsEntry(metadata);
 
-        client.newFSEntry(fsEntry, (err, response) => {
-            if (err) {
-                reject(new Error(`Failed to send fs update: ${err.message}`));
+        client.newFSEntry(fsEntry, (err, _response) => {
+            if ( err ) {
+                reject(new Error(`Failed to send fs new entry: ${err.message}`));
+                return;
+            }
+            resolve();
+        });
+    });
+}
+
+/**
+ * Sends a remove filesystem entry to the gRPC service
+ * @param {Object} metadata - The metadata for the FSEntry to remove
+ * @returns {Promise<void>} - Resolves when the entry is sent successfully
+ * @throws {Error} - If the gRPC call fails
+ */
+async function sendFsRemove(metadata) {
+    return new Promise((resolve, reject) => {
+        if ( !metadata ) {
+            reject(new Error('Metadata is required'));
+            return;
+        }
+
+        const fsEntry = buildFsEntry(metadata);
+
+        client.removeFSEntry(fsEntry, (err, _response) => {
+            if ( err ) {
+                reject(new Error(`Failed to send fs remove entry: ${err.message}`));
                 return;
             }
             resolve();
@@ -55,9 +77,9 @@ async function sendFsUpdate(fsUpdateEvent) {
  * - Map -> plain object
  * - Set -> array
  * - Other non-JSON types -> string fallback
- * 
+ *
  * NB: This function MUST mimic the behavior of safe-stable-stringify to ensure consistency.
- * 
+ *
  * Notes on undefined:
  * - safe-stable-stringify.stringify has the same behavior on undefined as JSON.stringify (https://github.com/BridgeAR/safe-stable-stringify/blob/bafd93def367f38c4f5ebd598fde7970f331ca9c/test.js#L513)
  *   - undefined in object is dropped
@@ -66,43 +88,41 @@ async function sendFsUpdate(fsUpdateEvent) {
  * - Another solution is to use safe-stable-stringify.stringify + parse, it's safer and slower.
  */
 function sanitizeForStruct(value) {
-    if (value === undefined) {
+    if ( value === undefined ) {
         return null;
     }
-    if (value === null) return null;
+    if ( value === null ) return null;
 
     const t = typeof value;
-    if (t === "string" || t === "number" || t === "boolean") return value;
+    if ( t === 'string' || t === 'number' || t === 'boolean' ) return value;
 
-    if (Array.isArray(value)) {
+    if ( Array.isArray(value) ) {
         return value.map(sanitizeForStruct);
     }
 
-    if (value instanceof Date) return value.toISOString();
+    if ( value instanceof Date ) return value.toISOString();
 
-    if (typeof Buffer !== "undefined" && Buffer.isBuffer(value)) {
-        return value.toString("base64");
+    if ( typeof Buffer !== 'undefined' && Buffer.isBuffer(value) ) {
+        return value.toString('base64');
     }
-    if (value instanceof Uint8Array) {
-        return Buffer.from(value).toString("base64");
+    if ( value instanceof Uint8Array ) {
+        return Buffer.from(value).toString('base64');
     }
 
-    if (value instanceof Map) {
+    if ( value instanceof Map ) {
         // TODO: Mimic the behavior of safe-stable-stringify on "undefined" values.
-        return Object.fromEntries(
-            Array.from(value.entries()).map(([k, v]) => [k, sanitizeForStruct(v)])
-        );
+        return Object.fromEntries(Array.from(value.entries()).map(([k, v]) => [k, sanitizeForStruct(v)]));
     }
-    if (value instanceof Set) {
+    if ( value instanceof Set ) {
         // TODO: Mimic the behavior of safe-stable-stringify on "undefined" values.
         return Array.from(value).map(sanitizeForStruct);
     }
 
-    if (value && value.constructor === Object) {
+    if ( value && value.constructor === Object ) {
         const out = {};
-        for (const [k, v] of Object.entries(value)) {
+        for ( const [k, v] of Object.entries(value) ) {
             // Mimic the behavior of safe-stable-stringify.
-            if (v === undefined) {
+            if ( v === undefined ) {
                 continue;
             }
             out[k] = sanitizeForStruct(v);
@@ -110,9 +130,9 @@ function sanitizeForStruct(value) {
         return out;
     }
 
-    if (t === "bigint") return value.toString();
+    if ( t === 'bigint' ) return value.toString();
 
-    if (typeof value.toJSON === "function") {
+    if ( typeof value.toJSON === 'function' ) {
         return sanitizeForStruct(value.toJSON());
     }
 
@@ -133,5 +153,6 @@ function buildFsEntry(metadataObj) {
 }
 
 module.exports = {
-    sendFsUpdate
+    sendFsNew,
+    sendFsRemove,
 };

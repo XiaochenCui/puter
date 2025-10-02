@@ -22,6 +22,7 @@ const FlagParam = require("../../api/filesystem/FlagParam");
 const StringParam = require("../../api/filesystem/StringParam");
 const { TYPE_DIRECTORY } = require("../FSNodeContext");
 const { HLFilesystemOperation } = require("./definitions");
+const { sendFsNew } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
 
 class HLMkShortcut extends HLFilesystemOperation {
     static PARAMETERS = {
@@ -98,7 +99,12 @@ class HLMkShortcut extends HLFilesystemOperation {
         });
 
         await created.awaitStableEntry();
-        return await created.getSafeEntry();
+        const response = await created.getSafeEntry();
+        
+        // emit fs update to fs_tree_manager
+        sendFsNew(response);
+        
+        return response;
     }
 }
 
