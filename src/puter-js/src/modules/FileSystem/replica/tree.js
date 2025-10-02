@@ -48,8 +48,8 @@ class FSTree {
      * Calculate Merkle hash for a node based on its metadata and children hashes
      * This matches the exact logic from server.go
      * @param {Object} node - The node to calculate hash for
-     * @param {Array} childrenHashes - Array of child node hashes
-     * @returns {string} - Hex string representation of the hash
+     * @param {Array} childrenHashes - Array of child node hashes (strings)
+     * @returns {string} - String representation of the hash
      */
     async calculateMerkleHash(node, childrenHashes = []) {
         const { create64 } = await xxhash();
@@ -62,16 +62,12 @@ class FSTree {
             hasher.update(metadata);
         }
 
-        // const sortedChildrenHashes = [...childrenHashes].sort();
-        // const sortedChildrenHashes = [...childrenHashes].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
-        const sortedChildrenHashes = [...childrenHashes].sort((a, b) =>
-            BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0
-        );
+        // Sort children hashes as strings for consistency
+        const sortedChildrenHashes = [...childrenHashes].sort();
         console.log(`sortedChildrenHashes [${childrenHashes.length}]: ${sortedChildrenHashes}`);
         for (const childHash of sortedChildrenHashes) {
-            const childBytes = childHash.toString();
-            console.log(`childBytes: ${childBytes}`);
-            hasher.update(childBytes);
+            console.log(`childBytes: ${childHash}`);
+            hasher.update(childHash);
         }
 
         const hash = hasher.digest();
@@ -237,7 +233,7 @@ class FSTree {
 
         const newNode = {
             uuid: fs_entry.uid,
-            merkle_hash: 0,
+            merkle_hash: "",
             parent_uuid: fs_entry.parent_uid,
             fs_entry: fs_entry,
             children_uuids: []
