@@ -71,8 +71,9 @@ class FSTree {
         }
 
         const hash = hasher.digest();
-        console.log(`node ${node.fs_entry.path} hash: ${hash}`);
-        return hash;
+        const hashString = hash.toString();
+        console.log(`node ${node.fs_entry.path} hash: ${hashString}`);
+        return hashString;
     }
 
     /**

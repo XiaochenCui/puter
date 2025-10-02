@@ -131,6 +131,8 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.UserName) (*pb.Merkle
 		s.trees[req.UserName] = tree
 	}
 
+	log.Printf("[user %s] fetched replica", req.UserName)
+
 	return tree, nil
 }
 
@@ -258,16 +260,21 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.E
 
 // PullDiff implements the FSTreeManager service
 func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
-	var tree *pb.MerkleTree
-	var err error
-	if cachedTree, exists := s.trees[req.UserName]; exists {
-		tree = cachedTree
-	} else {
-		tree, err = s.buildUserFSTree(req.UserName)
-		if err != nil {
-			return nil, err
+	cachedTree, exists := s.trees[req.UserName]
+	if !exists {
+		return nil, fmt.Errorf("[user %s] no cached tree found", req.UserName)
+	}
+
+	for _, pullRequestItem := range req.PullRequest {
+		node, exists := cachedTree.Nodes[pullRequestItem.Uuid]
+		if !exists {
+			return nil, fmt.Errorf("[user %s] node not found: %s", req.UserName, pullRequestItem.Uuid)
 		}
-		s.trees[req.UserName] = tree
+		if node.MerkleHash != pullRequestItem.MerkleHash {
+			log.Printf("[user %s] node %s merkle hash mismatch: %s != %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash, pullRequestItem.MerkleHash)
+		} else {
+			log.Printf("[user %s] node %s merkle hash matches: %s", req.UserName, pullRequestItem.Uuid, node.MerkleHash)
+		}
 	}
 
 	response := &pb.PushRequest{

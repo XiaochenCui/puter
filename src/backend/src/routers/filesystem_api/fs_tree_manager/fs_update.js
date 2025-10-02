@@ -34,11 +34,9 @@ async function sendFsUpdate(fsUpdateEvent) {
             return;
         }
 
-        // Build the FSEntry message
         const fsEntry = buildFsEntry(fsUpdateEvent.metadata);
 
-        // Call the NewDirectory RPC
-        client.NewFSEntry(fsEntry, (err, response) => {
+        client.newFSEntry(fsEntry, (err, response) => {
             if (err) {
                 reject(new Error(`Failed to send fs update: ${err.message}`));
                 return;
