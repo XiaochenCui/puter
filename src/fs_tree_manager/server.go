@@ -9,6 +9,7 @@ import (
 	"net"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -473,17 +474,15 @@ func getInt64Value(ni sql.NullInt64) interface{} {
 
 // buildUserFSTree builds the filesystem tree for a given user from the database
 func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
-	rootPath := fmt.Sprintf("/%d", userID)
-
 	query := `
 		SELECT uuid, name, is_dir, size, created, modified, path, parent_uid, 
 		       is_public, is_shortcut, is_symlink, symlink_path, sort_by, sort_order,
 		       immutable, metadata, accessed, associated_app_id, public_token, file_request_token
 		FROM fsentries 
-		WHERE path LIKE ?
+		WHERE user_id = ?
 	`
 
-	rows, err := s.db.Query(query, rootPath+"%")
+	rows, err := s.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -493,6 +492,7 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 	parentChildMap := make(map[string][]string)
 
 	var rootUUID string
+	var rootPath string
 
 	for rows.Next() {
 		var uuid, name, path string
@@ -541,8 +541,9 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 			parentChildMap[parentUID.String] = append(parentChildMap[parentUID.String], uuid)
 		}
 
-		if path == rootPath {
+		if strings.Count(path, "/") == 1 {
 			rootUUID = uuid
+			rootPath = path
 		}
 	}
 
@@ -553,7 +554,7 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 	}
 
 	if rootUUID == "" {
-		return nil, fmt.Errorf("user root directory not found: %s", rootPath)
+		return nil, fmt.Errorf("[user %d] root directory not found", userID)
 	}
 
 	tree := &pb.MerkleTree{
@@ -561,9 +562,23 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 		Nodes:    nodes,
 	}
 
+	// Heavy check to ensure the tree is consistent, remove this once client-replica is
+	// mature.
+	integrityCheck(tree, rootPath, userID)
+
 	calculateTreeMerkleHashes(tree)
 
 	return tree, nil
+}
+
+func integrityCheck(tree *pb.MerkleTree, rootPath string, userID int64) {
+	// root path should be the prefix of all other paths
+	for _, node := range tree.Nodes {
+		nodePath := node.FsEntry.Metadata.AsMap()["path"].(string)
+		if !strings.HasPrefix(nodePath, rootPath) {
+			log.Fatalf("[user %d] prefix check failed, root path: %s, node path: %s", userID, rootPath, nodePath)
+		}
+	}
 }
 
 func main() {

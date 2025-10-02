@@ -18,7 +18,6 @@
  */
 
 'use strict';
-const { Context } = require('../../../util/context.js');
 
 // -----------------------------------------------------------------------//
 // WebSocket handler for replica/fetch
@@ -26,15 +25,6 @@ const { Context } = require('../../../util/context.js');
 module.exports = {
     event: 'replica/fetch',
     handler: async (socket, data) => {
-        let log;
-        {
-            const x = Context.get();
-            log = x.get('services').get('log-service').create('replica-fetch', {
-                concern: 'filesystem',
-            });
-            log.info(`replica/fetch: ${JSON.stringify(data)}`);
-        }
-
         // ----------------------------
         // gRPC generated code
         // ----------------------------
@@ -58,10 +48,10 @@ module.exports = {
 
         client.fetchReplica(requestMsg, (err, resp) => {
             if ( err ) {
-                log.error('FetchReplica error:', err);
+                console.error('FetchReplica error:', err);
                 return socket.emit('replica/fetch/error', {
                     success: false,
-                    error: { message: 'Failed to fetch replica', details: err.message },
+                    error: { message: 'failed to fetch replica', details: err.message },
                 });
             }
 
