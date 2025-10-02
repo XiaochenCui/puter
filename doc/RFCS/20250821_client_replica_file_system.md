@@ -50,6 +50,83 @@ Both initialization and synchronization are done via websocket to save network t
 
 ### Client-Replica Synchronization
 
+Both initialization and synchronization are done via websocket to save network traffic.
+
+Client start a sync by sending a request to the server:
+
+```json
+{
+  "pull_requests": [
+    {
+      "uuid": "<uuid>",
+      "hash": "<hash>"
+    }
+  ]
+}
+```
+
+Server send push requests when there are differences between the client and server.
+
+```json
+{
+  "push_requests": [
+    {
+      "path": "/Tim",
+      "hash": "<hash>",
+      "fs_entry": "...",
+      "children": [
+        {
+          "path": "/Tim/same_1",
+          "hash": "<hash>",
+          "fs_entry": "..."
+        },
+        {
+          "path": "/Tim/same_2",
+          "hash": "<hash>",
+          "fs_entry": "..."
+        },
+        {
+          "path": "/Tim/diff_1",
+          "hash": "<hash>",
+          "fs_entry": "..."
+        },
+        {
+          "path": "/Tim/diff_2",
+          "hash": "<hash>",
+          "fs_entry": "..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+Client does the following actions in sequence:
+1. 
+
+```json
+{
+  "pull_requests": [
+    {
+      "path": "/Tim",
+      "hash": "<hash>",
+      "children": [
+        {
+          "name": "diff_1",
+          "hash": ""
+        },
+        {
+          "name": "diff_2",
+          "hash": ""
+        }
+      ]
+    }
+  ]
+}
+```
+
+Server get the pull requests and send the children of leaf nodes to the client.
+
 ### Client-side Replica
 
 #### Initialization

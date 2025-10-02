@@ -129,6 +129,7 @@ function sanitizeForStruct(value) {
 function buildFsEntry(metadataObj) {
 
     {
+        // debug
         const res_1 = sanitizeForStruct(metadataObj);
         const res_2 = stringify(metadataObj);
         console.log(`res_1: ${res_1}`);

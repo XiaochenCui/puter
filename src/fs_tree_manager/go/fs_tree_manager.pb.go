@@ -23,27 +23,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type FetchReplicaRequest struct {
+type UserName struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserName      string                 `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *FetchReplicaRequest) Reset() {
-	*x = FetchReplicaRequest{}
+func (x *UserName) Reset() {
+	*x = UserName{}
 	mi := &file_fs_tree_manager_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *FetchReplicaRequest) String() string {
+func (x *UserName) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*FetchReplicaRequest) ProtoMessage() {}
+func (*UserName) ProtoMessage() {}
 
-func (x *FetchReplicaRequest) ProtoReflect() protoreflect.Message {
+func (x *UserName) ProtoReflect() protoreflect.Message {
 	mi := &file_fs_tree_manager_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -55,70 +55,30 @@ func (x *FetchReplicaRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use FetchReplicaRequest.ProtoReflect.Descriptor instead.
-func (*FetchReplicaRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UserName.ProtoReflect.Descriptor instead.
+func (*UserName) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *FetchReplicaRequest) GetUserName() string {
+func (x *UserName) GetUserName() string {
 	if x != nil {
 		return x.UserName
 	}
 	return ""
 }
 
-type FetchReplicaResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tree          *MerkleTree            `protobuf:"bytes,1,opt,name=tree,proto3" json:"tree,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FetchReplicaResponse) Reset() {
-	*x = FetchReplicaResponse{}
-	mi := &file_fs_tree_manager_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FetchReplicaResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FetchReplicaResponse) ProtoMessage() {}
-
-func (x *FetchReplicaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FetchReplicaResponse.ProtoReflect.Descriptor instead.
-func (*FetchReplicaResponse) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *FetchReplicaResponse) GetTree() *MerkleTree {
-	if x != nil {
-		return x.Tree
-	}
-	return nil
-}
-
 type MerkleNode struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// We use the stable uuid from fs_entry so pointers to it stay valid when this
 	// node is updated.
-	Id            string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MerkleHash    uint64   `protobuf:"varint,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
-	ChildrenIds   []string `protobuf:"bytes,3,rep,name=children_ids,json=childrenIds,proto3" json:"children_ids,omitempty"`
-	ParentId      string   `protobuf:"bytes,4,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	Uuid string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	// We use string instead of uint64 for several reasons:
+	//  1. JS is error prone when handling uint64/bigint and it's time-consuming to
+	//     troubleshoot.
+	//  2. It's easier to come up with a consistent order on string type.
+	MerkleHash    string   `protobuf:"bytes,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
+	ChildrenUuids []string `protobuf:"bytes,3,rep,name=children_uuids,json=childrenUuids,proto3" json:"children_uuids,omitempty"`
+	ParentUuid    string   `protobuf:"bytes,4,opt,name=parent_uuid,json=parentUuid,proto3" json:"parent_uuid,omitempty"`
 	FsEntry       *FSEntry `protobuf:"bytes,5,opt,name=fs_entry,json=fsEntry,proto3" json:"fs_entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -126,7 +86,7 @@ type MerkleNode struct {
 
 func (x *MerkleNode) Reset() {
 	*x = MerkleNode{}
-	mi := &file_fs_tree_manager_proto_msgTypes[2]
+	mi := &file_fs_tree_manager_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -138,7 +98,7 @@ func (x *MerkleNode) String() string {
 func (*MerkleNode) ProtoMessage() {}
 
 func (x *MerkleNode) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[2]
+	mi := &file_fs_tree_manager_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -151,33 +111,33 @@ func (x *MerkleNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleNode.ProtoReflect.Descriptor instead.
 func (*MerkleNode) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{2}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *MerkleNode) GetId() string {
+func (x *MerkleNode) GetUuid() string {
 	if x != nil {
-		return x.Id
+		return x.Uuid
 	}
 	return ""
 }
 
-func (x *MerkleNode) GetMerkleHash() uint64 {
+func (x *MerkleNode) GetMerkleHash() string {
 	if x != nil {
 		return x.MerkleHash
 	}
-	return 0
+	return ""
 }
 
-func (x *MerkleNode) GetChildrenIds() []string {
+func (x *MerkleNode) GetChildrenUuids() []string {
 	if x != nil {
-		return x.ChildrenIds
+		return x.ChildrenUuids
 	}
 	return nil
 }
 
-func (x *MerkleNode) GetParentId() string {
+func (x *MerkleNode) GetParentUuid() string {
 	if x != nil {
-		return x.ParentId
+		return x.ParentUuid
 	}
 	return ""
 }
@@ -189,9 +149,11 @@ func (x *MerkleNode) GetFsEntry() *FSEntry {
 	return nil
 }
 
+// The motivation of this design is elaborated in the RFC
+// (doc/RFCS/20250821_client_replica_file_system.md)
 type MerkleTree struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	RootId string                 `protobuf:"bytes,1,opt,name=root_id,json=rootId,proto3" json:"root_id,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	RootUuid string                 `protobuf:"bytes,1,opt,name=root_uuid,json=rootUuid,proto3" json:"root_uuid,omitempty"`
 	// id -> node
 	Nodes         map[string]*MerkleNode `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
@@ -200,7 +162,7 @@ type MerkleTree struct {
 
 func (x *MerkleTree) Reset() {
 	*x = MerkleTree{}
-	mi := &file_fs_tree_manager_proto_msgTypes[3]
+	mi := &file_fs_tree_manager_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -212,7 +174,7 @@ func (x *MerkleTree) String() string {
 func (*MerkleTree) ProtoMessage() {}
 
 func (x *MerkleTree) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[3]
+	mi := &file_fs_tree_manager_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,12 +187,12 @@ func (x *MerkleTree) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleTree.ProtoReflect.Descriptor instead.
 func (*MerkleTree) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{3}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *MerkleTree) GetRootId() string {
+func (x *MerkleTree) GetRootUuid() string {
 	if x != nil {
-		return x.RootId
+		return x.RootUuid
 	}
 	return ""
 }
@@ -251,7 +213,7 @@ type FSEntry struct {
 
 func (x *FSEntry) Reset() {
 	*x = FSEntry{}
-	mi := &file_fs_tree_manager_proto_msgTypes[4]
+	mi := &file_fs_tree_manager_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -263,7 +225,7 @@ func (x *FSEntry) String() string {
 func (*FSEntry) ProtoMessage() {}
 
 func (x *FSEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[4]
+	mi := &file_fs_tree_manager_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -276,7 +238,7 @@ func (x *FSEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSEntry.ProtoReflect.Descriptor instead.
 func (*FSEntry) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{4}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FSEntry) GetMetadata() *structpb.Struct {
@@ -290,32 +252,34 @@ var File_fs_tree_manager_proto protoreflect.FileDescriptor
 
 const file_fs_tree_manager_proto_rawDesc = "" +
 	"\n" +
-	"\x15fs_tree_manager.proto\x12\x0ffs_tree_manager\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1bgoogle/protobuf/empty.proto\"2\n" +
-	"\x13FetchReplicaRequest\x12\x1b\n" +
-	"\tuser_name\x18\x01 \x01(\tR\buserName\"G\n" +
-	"\x14FetchReplicaResponse\x12/\n" +
-	"\x04tree\x18\x01 \x01(\v2\x1b.fs_tree_manager.MerkleTreeR\x04tree\"\xb2\x01\n" +
+	"\x15fs_tree_manager.proto\x12\x0ffs_tree_manager\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1bgoogle/protobuf/empty.proto\"'\n" +
+	"\bUserName\x12\x1b\n" +
+	"\tuser_name\x18\x01 \x01(\tR\buserName\"\xbe\x01\n" +
 	"\n" +
-	"MerkleNode\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
-	"\vmerkle_hash\x18\x02 \x01(\x04R\n" +
-	"merkleHash\x12!\n" +
-	"\fchildren_ids\x18\x03 \x03(\tR\vchildrenIds\x12\x1b\n" +
-	"\tparent_id\x18\x04 \x01(\tR\bparentId\x123\n" +
-	"\bfs_entry\x18\x05 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\"\xba\x01\n" +
+	"MerkleNode\x12\x12\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +
+	"\vmerkle_hash\x18\x02 \x01(\tR\n" +
+	"merkleHash\x12%\n" +
+	"\x0echildren_uuids\x18\x03 \x03(\tR\rchildrenUuids\x12\x1f\n" +
+	"\vparent_uuid\x18\x04 \x01(\tR\n" +
+	"parentUuid\x123\n" +
+	"\bfs_entry\x18\x05 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\"\xbe\x01\n" +
 	"\n" +
-	"MerkleTree\x12\x17\n" +
-	"\aroot_id\x18\x01 \x01(\tR\x06rootId\x12<\n" +
+	"MerkleTree\x12\x1b\n" +
+	"\troot_uuid\x18\x01 \x01(\tR\brootUuid\x12<\n" +
 	"\x05nodes\x18\x02 \x03(\v2&.fs_tree_manager.MerkleTree.NodesEntryR\x05nodes\x1aU\n" +
 	"\n" +
 	"NodesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
 	"\x05value\x18\x02 \x01(\v2\x1b.fs_tree_manager.MerkleNodeR\x05value:\x028\x01\">\n" +
 	"\aFSEntry\x123\n" +
-	"\bmetadata\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bmetadata2\xae\x01\n" +
-	"\rFSTreeManager\x12[\n" +
-	"\fFetchReplica\x12$.fs_tree_manager.FetchReplicaRequest\x1a%.fs_tree_manager.FetchReplicaResponse\x12@\n" +
-	"\fNewDirectory\x12\x18.fs_tree_manager.FSEntry\x1a\x16.google.protobuf.EmptyB\"Z github.com/puter/fs_tree_managerb\x06proto3"
+	"\bmetadata\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bmetadata2\x9d\x02\n" +
+	"\rFSTreeManager\x12F\n" +
+	"\fFetchReplica\x12\x19.fs_tree_manager.UserName\x1a\x1b.fs_tree_manager.MerkleTree\x12>\n" +
+	"\n" +
+	"NewFSEntry\x12\x18.fs_tree_manager.FSEntry\x1a\x16.google.protobuf.Empty\x12A\n" +
+	"\rRemoveFSEntry\x12\x18.fs_tree_manager.FSEntry\x1a\x16.google.protobuf.Empty\x12A\n" +
+	"\fPurgeReplica\x12\x19.fs_tree_manager.UserName\x1a\x16.google.protobuf.EmptyB\"Z github.com/puter/fs_tree_managerb\x06proto3"
 
 var (
 	file_fs_tree_manager_proto_rawDescOnce sync.Once
@@ -329,32 +293,34 @@ func file_fs_tree_manager_proto_rawDescGZIP() []byte {
 	return file_fs_tree_manager_proto_rawDescData
 }
 
-var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_fs_tree_manager_proto_goTypes = []any{
-	(*FetchReplicaRequest)(nil),  // 0: fs_tree_manager.FetchReplicaRequest
-	(*FetchReplicaResponse)(nil), // 1: fs_tree_manager.FetchReplicaResponse
-	(*MerkleNode)(nil),           // 2: fs_tree_manager.MerkleNode
-	(*MerkleTree)(nil),           // 3: fs_tree_manager.MerkleTree
-	(*FSEntry)(nil),              // 4: fs_tree_manager.FSEntry
-	nil,                          // 5: fs_tree_manager.MerkleTree.NodesEntry
-	(*structpb.Struct)(nil),      // 6: google.protobuf.Struct
-	(*emptypb.Empty)(nil),        // 7: google.protobuf.Empty
+	(*UserName)(nil),        // 0: fs_tree_manager.UserName
+	(*MerkleNode)(nil),      // 1: fs_tree_manager.MerkleNode
+	(*MerkleTree)(nil),      // 2: fs_tree_manager.MerkleTree
+	(*FSEntry)(nil),         // 3: fs_tree_manager.FSEntry
+	nil,                     // 4: fs_tree_manager.MerkleTree.NodesEntry
+	(*structpb.Struct)(nil), // 5: google.protobuf.Struct
+	(*emptypb.Empty)(nil),   // 6: google.protobuf.Empty
 }
 var file_fs_tree_manager_proto_depIdxs = []int32{
-	3, // 0: fs_tree_manager.FetchReplicaResponse.tree:type_name -> fs_tree_manager.MerkleTree
-	4, // 1: fs_tree_manager.MerkleNode.fs_entry:type_name -> fs_tree_manager.FSEntry
-	5, // 2: fs_tree_manager.MerkleTree.nodes:type_name -> fs_tree_manager.MerkleTree.NodesEntry
-	6, // 3: fs_tree_manager.FSEntry.metadata:type_name -> google.protobuf.Struct
-	2, // 4: fs_tree_manager.MerkleTree.NodesEntry.value:type_name -> fs_tree_manager.MerkleNode
-	0, // 5: fs_tree_manager.FSTreeManager.FetchReplica:input_type -> fs_tree_manager.FetchReplicaRequest
-	4, // 6: fs_tree_manager.FSTreeManager.NewDirectory:input_type -> fs_tree_manager.FSEntry
-	1, // 7: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.FetchReplicaResponse
-	7, // 8: fs_tree_manager.FSTreeManager.NewDirectory:output_type -> google.protobuf.Empty
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	3, // 0: fs_tree_manager.MerkleNode.fs_entry:type_name -> fs_tree_manager.FSEntry
+	4, // 1: fs_tree_manager.MerkleTree.nodes:type_name -> fs_tree_manager.MerkleTree.NodesEntry
+	5, // 2: fs_tree_manager.FSEntry.metadata:type_name -> google.protobuf.Struct
+	1, // 3: fs_tree_manager.MerkleTree.NodesEntry.value:type_name -> fs_tree_manager.MerkleNode
+	0, // 4: fs_tree_manager.FSTreeManager.FetchReplica:input_type -> fs_tree_manager.UserName
+	3, // 5: fs_tree_manager.FSTreeManager.NewFSEntry:input_type -> fs_tree_manager.FSEntry
+	3, // 6: fs_tree_manager.FSTreeManager.RemoveFSEntry:input_type -> fs_tree_manager.FSEntry
+	0, // 7: fs_tree_manager.FSTreeManager.PurgeReplica:input_type -> fs_tree_manager.UserName
+	2, // 8: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.MerkleTree
+	6, // 9: fs_tree_manager.FSTreeManager.NewFSEntry:output_type -> google.protobuf.Empty
+	6, // 10: fs_tree_manager.FSTreeManager.RemoveFSEntry:output_type -> google.protobuf.Empty
+	6, // 11: fs_tree_manager.FSTreeManager.PurgeReplica:output_type -> google.protobuf.Empty
+	8, // [8:12] is the sub-list for method output_type
+	4, // [4:8] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_fs_tree_manager_proto_init() }
@@ -368,7 +334,7 @@ func file_fs_tree_manager_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fs_tree_manager_proto_rawDesc), len(file_fs_tree_manager_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

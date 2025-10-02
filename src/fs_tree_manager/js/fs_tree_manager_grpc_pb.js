@@ -17,26 +17,26 @@ function deserialize_fs_tree_manager_FSEntry(buffer_arg) {
   return fs_tree_manager_pb.FSEntry.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
-function serialize_fs_tree_manager_FetchReplicaRequest(arg) {
-  if (!(arg instanceof fs_tree_manager_pb.FetchReplicaRequest)) {
-    throw new Error('Expected argument of type fs_tree_manager.FetchReplicaRequest');
+function serialize_fs_tree_manager_MerkleTree(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.MerkleTree)) {
+    throw new Error('Expected argument of type fs_tree_manager.MerkleTree');
   }
   return Buffer.from(arg.serializeBinary());
 }
 
-function deserialize_fs_tree_manager_FetchReplicaRequest(buffer_arg) {
-  return fs_tree_manager_pb.FetchReplicaRequest.deserializeBinary(new Uint8Array(buffer_arg));
+function deserialize_fs_tree_manager_MerkleTree(buffer_arg) {
+  return fs_tree_manager_pb.MerkleTree.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
-function serialize_fs_tree_manager_FetchReplicaResponse(arg) {
-  if (!(arg instanceof fs_tree_manager_pb.FetchReplicaResponse)) {
-    throw new Error('Expected argument of type fs_tree_manager.FetchReplicaResponse');
+function serialize_fs_tree_manager_UserName(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.UserName)) {
+    throw new Error('Expected argument of type fs_tree_manager.UserName');
   }
   return Buffer.from(arg.serializeBinary());
 }
 
-function deserialize_fs_tree_manager_FetchReplicaResponse(buffer_arg) {
-  return fs_tree_manager_pb.FetchReplicaResponse.deserializeBinary(new Uint8Array(buffer_arg));
+function deserialize_fs_tree_manager_UserName(buffer_arg) {
+  return fs_tree_manager_pb.UserName.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
 function serialize_google_protobuf_Empty(arg) {
@@ -56,23 +56,48 @@ var FSTreeManagerService = exports.FSTreeManagerService = {
     path: '/fs_tree_manager.FSTreeManager/FetchReplica',
     requestStream: false,
     responseStream: false,
-    requestType: fs_tree_manager_pb.FetchReplicaRequest,
-    responseType: fs_tree_manager_pb.FetchReplicaResponse,
-    requestSerialize: serialize_fs_tree_manager_FetchReplicaRequest,
-    requestDeserialize: deserialize_fs_tree_manager_FetchReplicaRequest,
-    responseSerialize: serialize_fs_tree_manager_FetchReplicaResponse,
-    responseDeserialize: deserialize_fs_tree_manager_FetchReplicaResponse,
+    requestType: fs_tree_manager_pb.UserName,
+    responseType: fs_tree_manager_pb.MerkleTree,
+    requestSerialize: serialize_fs_tree_manager_UserName,
+    requestDeserialize: deserialize_fs_tree_manager_UserName,
+    responseSerialize: serialize_fs_tree_manager_MerkleTree,
+    responseDeserialize: deserialize_fs_tree_manager_MerkleTree,
   },
-  // It isn't named "mkdir" since it doesn't handle the various parameters
-// supported by "mkdir."
-newDirectory: {
-    path: '/fs_tree_manager.FSTreeManager/NewDirectory',
+  // We provide simple New/Remove APIs as a straightforward way to accommodate
+// the wide variety of file system operations. For simplicity, these APIs do
+// not automatically update parent or child FSEntries.
+newFSEntry: {
+    path: '/fs_tree_manager.FSTreeManager/NewFSEntry',
     requestStream: false,
     responseStream: false,
     requestType: fs_tree_manager_pb.FSEntry,
     responseType: google_protobuf_empty_pb.Empty,
     requestSerialize: serialize_fs_tree_manager_FSEntry,
     requestDeserialize: deserialize_fs_tree_manager_FSEntry,
+    responseSerialize: serialize_google_protobuf_Empty,
+    responseDeserialize: deserialize_google_protobuf_Empty,
+  },
+  removeFSEntry: {
+    path: '/fs_tree_manager.FSTreeManager/RemoveFSEntry',
+    requestStream: false,
+    responseStream: false,
+    requestType: fs_tree_manager_pb.FSEntry,
+    responseType: google_protobuf_empty_pb.Empty,
+    requestSerialize: serialize_fs_tree_manager_FSEntry,
+    requestDeserialize: deserialize_fs_tree_manager_FSEntry,
+    responseSerialize: serialize_google_protobuf_Empty,
+    responseDeserialize: deserialize_google_protobuf_Empty,
+  },
+  // For any fs operations that cannot be handled by New/Remove APIs, just purge
+// the replica.
+purgeReplica: {
+    path: '/fs_tree_manager.FSTreeManager/PurgeReplica',
+    requestStream: false,
+    responseStream: false,
+    requestType: fs_tree_manager_pb.UserName,
+    responseType: google_protobuf_empty_pb.Empty,
+    requestSerialize: serialize_fs_tree_manager_UserName,
+    requestDeserialize: deserialize_fs_tree_manager_UserName,
     responseSerialize: serialize_google_protobuf_Empty,
     responseDeserialize: deserialize_google_protobuf_Empty,
   },

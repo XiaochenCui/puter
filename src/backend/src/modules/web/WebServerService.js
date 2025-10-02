@@ -288,13 +288,26 @@ class WebServerService extends BaseService {
                 socket.broadcast.to(socket.user.id).emit('trash.is_empty', msg);
             });
             
-            // Load and register WebSocket handlers from filesystem_api
+            // ======================================================================
+            // client-replica related handlers
+            // ======================================================================
             const replicaFetchHandler = require('../../routers/filesystem_api/fs_tree_manager/replica_fetch');
             if (replicaFetchHandler.event && replicaFetchHandler.handler) {
                 socket.on(replicaFetchHandler.event, (data) => {
                     replicaFetchHandler.handler(socket, data);
                 });
             }
+
+            const replicaPullDiffHandler = require('../../routers/filesystem_api/fs_tree_manager/pull_diff');
+            if (replicaPullDiffHandler.event && replicaPullDiffHandler.handler) {
+                socket.on(replicaPullDiffHandler.event, (data) => {
+                    replicaPullDiffHandler.handler(socket, data);
+                });
+            }
+
+            // ======================================================================
+            // other handlers
+            // ======================================================================
             
             const svc_event = this.services.get('event');
             svc_event.emit('web.socket.connected', {

@@ -20,18 +20,25 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FSTreeManager_FetchReplica_FullMethodName = "/fs_tree_manager.FSTreeManager/FetchReplica"
-	FSTreeManager_NewDirectory_FullMethodName = "/fs_tree_manager.FSTreeManager/NewDirectory"
+	FSTreeManager_FetchReplica_FullMethodName  = "/fs_tree_manager.FSTreeManager/FetchReplica"
+	FSTreeManager_NewFSEntry_FullMethodName    = "/fs_tree_manager.FSTreeManager/NewFSEntry"
+	FSTreeManager_RemoveFSEntry_FullMethodName = "/fs_tree_manager.FSTreeManager/RemoveFSEntry"
+	FSTreeManager_PurgeReplica_FullMethodName  = "/fs_tree_manager.FSTreeManager/PurgeReplica"
 )
 
 // FSTreeManagerClient is the client API for FSTreeManager service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FSTreeManagerClient interface {
-	FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*FetchReplicaResponse, error)
-	// It isn't named "mkdir" since it doesn't handle the various parameters
-	// supported by "mkdir."
-	NewDirectory(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	FetchReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*MerkleTree, error)
+	// We provide simple New/Remove APIs as a straightforward way to accommodate
+	// the wide variety of file system operations. For simplicity, these APIs do
+	// not automatically update parent or child FSEntries.
+	NewFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	RemoveFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// For any fs operations that cannot be handled by New/Remove APIs, just purge
+	// the replica.
+	PurgeReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type fSTreeManagerClient struct {
@@ -42,9 +49,9 @@ func NewFSTreeManagerClient(cc grpc.ClientConnInterface) FSTreeManagerClient {
 	return &fSTreeManagerClient{cc}
 }
 
-func (c *fSTreeManagerClient) FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*FetchReplicaResponse, error) {
+func (c *fSTreeManagerClient) FetchReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*MerkleTree, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(FetchReplicaResponse)
+	out := new(MerkleTree)
 	err := c.cc.Invoke(ctx, FSTreeManager_FetchReplica_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -52,10 +59,30 @@ func (c *fSTreeManagerClient) FetchReplica(ctx context.Context, in *FetchReplica
 	return out, nil
 }
 
-func (c *fSTreeManagerClient) NewDirectory(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *fSTreeManagerClient) NewFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, FSTreeManager_NewDirectory_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, FSTreeManager_NewFSEntry_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fSTreeManagerClient) RemoveFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, FSTreeManager_RemoveFSEntry_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, FSTreeManager_PurgeReplica_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,10 +93,15 @@ func (c *fSTreeManagerClient) NewDirectory(ctx context.Context, in *FSEntry, opt
 // All implementations must embed UnimplementedFSTreeManagerServer
 // for forward compatibility.
 type FSTreeManagerServer interface {
-	FetchReplica(context.Context, *FetchReplicaRequest) (*FetchReplicaResponse, error)
-	// It isn't named "mkdir" since it doesn't handle the various parameters
-	// supported by "mkdir."
-	NewDirectory(context.Context, *FSEntry) (*emptypb.Empty, error)
+	FetchReplica(context.Context, *UserName) (*MerkleTree, error)
+	// We provide simple New/Remove APIs as a straightforward way to accommodate
+	// the wide variety of file system operations. For simplicity, these APIs do
+	// not automatically update parent or child FSEntries.
+	NewFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error)
+	RemoveFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error)
+	// For any fs operations that cannot be handled by New/Remove APIs, just purge
+	// the replica.
+	PurgeReplica(context.Context, *UserName) (*emptypb.Empty, error)
 	mustEmbedUnimplementedFSTreeManagerServer()
 }
 
@@ -80,11 +112,17 @@ type FSTreeManagerServer interface {
 // pointer dereference when methods are called.
 type UnimplementedFSTreeManagerServer struct{}
 
-func (UnimplementedFSTreeManagerServer) FetchReplica(context.Context, *FetchReplicaRequest) (*FetchReplicaResponse, error) {
+func (UnimplementedFSTreeManagerServer) FetchReplica(context.Context, *UserName) (*MerkleTree, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchReplica not implemented")
 }
-func (UnimplementedFSTreeManagerServer) NewDirectory(context.Context, *FSEntry) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method NewDirectory not implemented")
+func (UnimplementedFSTreeManagerServer) NewFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NewFSEntry not implemented")
+}
+func (UnimplementedFSTreeManagerServer) RemoveFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveFSEntry not implemented")
+}
+func (UnimplementedFSTreeManagerServer) PurgeReplica(context.Context, *UserName) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PurgeReplica not implemented")
 }
 func (UnimplementedFSTreeManagerServer) mustEmbedUnimplementedFSTreeManagerServer() {}
 func (UnimplementedFSTreeManagerServer) testEmbeddedByValue()                       {}
@@ -108,7 +146,7 @@ func RegisterFSTreeManagerServer(s grpc.ServiceRegistrar, srv FSTreeManagerServe
 }
 
 func _FSTreeManager_FetchReplica_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FetchReplicaRequest)
+	in := new(UserName)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -120,25 +158,61 @@ func _FSTreeManager_FetchReplica_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: FSTreeManager_FetchReplica_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FSTreeManagerServer).FetchReplica(ctx, req.(*FetchReplicaRequest))
+		return srv.(FSTreeManagerServer).FetchReplica(ctx, req.(*UserName))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FSTreeManager_NewDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _FSTreeManager_NewFSEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(FSEntry)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FSTreeManagerServer).NewDirectory(ctx, in)
+		return srv.(FSTreeManagerServer).NewFSEntry(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: FSTreeManager_NewDirectory_FullMethodName,
+		FullMethod: FSTreeManager_NewFSEntry_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FSTreeManagerServer).NewDirectory(ctx, req.(*FSEntry))
+		return srv.(FSTreeManagerServer).NewFSEntry(ctx, req.(*FSEntry))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FSTreeManager_RemoveFSEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FSEntry)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FSTreeManagerServer).RemoveFSEntry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FSTreeManager_RemoveFSEntry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FSTreeManagerServer).RemoveFSEntry(ctx, req.(*FSEntry))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FSTreeManager_PurgeReplica_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserName)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FSTreeManagerServer).PurgeReplica(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FSTreeManager_PurgeReplica_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FSTreeManagerServer).PurgeReplica(ctx, req.(*UserName))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -155,8 +229,16 @@ var FSTreeManager_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FSTreeManager_FetchReplica_Handler,
 		},
 		{
-			MethodName: "NewDirectory",
-			Handler:    _FSTreeManager_NewDirectory_Handler,
+			MethodName: "NewFSEntry",
+			Handler:    _FSTreeManager_NewFSEntry_Handler,
+		},
+		{
+			MethodName: "RemoveFSEntry",
+			Handler:    _FSTreeManager_RemoveFSEntry_Handler,
+		},
+		{
+			MethodName: "PurgeReplica",
+			Handler:    _FSTreeManager_PurgeReplica_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
