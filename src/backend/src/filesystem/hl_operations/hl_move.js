@@ -206,9 +206,6 @@ class HLMove extends HLFilesystemOperation {
             response.parent_dirs_created.push(await node.getSafeEntry());
         }
 
-        // emit fs update to fs_tree_manager
-        sendFsNew(response.moved);
-
         return response;
     }
 }

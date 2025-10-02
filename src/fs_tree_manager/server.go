@@ -9,7 +9,6 @@ import (
 	"net"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -117,7 +116,7 @@ func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
 }
 
 // FetchReplica implements the FSTreeManager service
-func (s *server) FetchReplica(ctx context.Context, req *pb.UserName) (*pb.MerkleTree, error) {
+func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) (*pb.MerkleTree, error) {
 	var tree *pb.MerkleTree
 	var err error
 
@@ -136,33 +135,20 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.UserName) (*pb.Merkle
 	return tree, nil
 }
 
-// extractUsernameFromPath extracts the username from a path like /admin/Desktop/New -> admin
-func extractUsernameFromPath(path string) (string, error) {
-	cleanPath := strings.TrimPrefix(path, "/")
-	pathParts := strings.Split(cleanPath, "/")
-
-	if len(pathParts) == 0 || pathParts[0] == "" {
-		return "", fmt.Errorf("invalid path format: no username found in path %s", path)
-	}
-
-	username := pathParts[0]
-	if username == "" {
-		return "", fmt.Errorf("invalid path format: empty username in path %s", path)
-	}
-
-	return username, nil
-}
-
 // NewFSEntry implements the FSTreeManager service
-func (s *server) NewFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.Empty, error) {
-	metadataMap := req.Metadata.AsMap()
-	path, ok := metadataMap["path"].(string)
+func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*emptypb.Empty, error) {
+	username := req.UserName
+	fsEntry := req.FsEntry
+
+	metadataMap := fsEntry.Metadata.AsMap()
+	uid, ok := metadataMap["uid"].(string)
 	if !ok {
-		return nil, fmt.Errorf("invalid metadata: missing path information")
+		return nil, fmt.Errorf("invalid metadata: missing uid")
 	}
-	username, pathErr := extractUsernameFromPath(path)
-	if pathErr != nil {
-		return nil, fmt.Errorf("error extracting username from path: %v", pathErr)
+
+	parentUID, ok := metadataMap["parent_uid"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid metadata: missing parent_uid")
 	}
 
 	var tree *pb.MerkleTree
@@ -177,16 +163,6 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.Empt
 		s.trees[username] = tree
 	}
 
-	uid, ok := metadataMap["uid"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid metadata: missing uid")
-	}
-
-	parentUID, ok := metadataMap["parent_uid"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid metadata: missing parent_uid")
-	}
-
 	parentNode, exists := tree.Nodes[parentUID]
 	if !exists {
 		return nil, fmt.Errorf("parent directory not found: %s", parentUID)
@@ -196,7 +172,7 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.Empt
 		Uuid:          uid,
 		MerkleHash:    "",
 		ParentUuid:    parentUID,
-		FsEntry:       req,
+		FsEntry:       fsEntry,
 		ChildrenUuids: []string{},
 	}
 
@@ -212,34 +188,33 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.Empt
 }
 
 // RemoveFSEntry implements the FSTreeManager service
-func (s *server) RemoveFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.Empty, error) {
-	metadataMap := req.Metadata.AsMap()
-	path, ok := metadataMap["path"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid metadata: missing path information")
-	}
-	username, pathErr := extractUsernameFromPath(path)
-	if pathErr != nil {
-		return nil, fmt.Errorf("error extracting username from path: %v", pathErr)
+func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest) (*emptypb.Empty, error) {
+	username := req.UserName
+	uid := req.Uuid
+	if uid == "" {
+		return nil, fmt.Errorf("invalid request: missing uuid")
 	}
 
-	tree, exists := s.trees[username]
-	if !exists {
-		return nil, fmt.Errorf("no cached tree found for user %s", username)
+	var tree *pb.MerkleTree
+	var err error
+	if cachedTree, exists := s.trees[username]; exists {
+		tree = cachedTree
+	} else {
+		tree, err = s.buildUserFSTree(username)
+		if err != nil {
+			return nil, err
+		}
+		s.trees[username] = tree
 	}
 
-	uid, ok := metadataMap["uid"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid metadata: missing uid")
-	}
-
-	node, exists := tree.Nodes[uid]
+	targetNode, exists := tree.Nodes[uid]
 	if !exists {
 		return nil, fmt.Errorf("entry not found: %s", uid)
 	}
 
-	if node.ParentUuid != "" {
-		if parentNode, parentExists := tree.Nodes[node.ParentUuid]; parentExists {
+	// Remove the node from its parent's children list
+	if targetNode.ParentUuid != "" {
+		if parentNode, parentExists := tree.Nodes[targetNode.ParentUuid]; parentExists {
 			for i, childUUID := range parentNode.ChildrenUuids {
 				if childUUID == uid {
 					parentNode.ChildrenUuids = append(parentNode.ChildrenUuids[:i], parentNode.ChildrenUuids[i+1:]...)
@@ -249,11 +224,15 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.E
 		}
 	}
 
+	// Remove the node from the tree
 	delete(tree.Nodes, uid)
 
-	if node.ParentUuid != "" {
-		recalculateAncestorHashes(tree, node.ParentUuid)
+	// Recalculate ancestor hashes
+	if targetNode.ParentUuid != "" {
+		recalculateAncestorHashes(tree, targetNode.ParentUuid)
 	}
+
+	log.Printf("[user %s] removed fs entry: %s", username, uid)
 
 	return &emptypb.Empty{}, nil
 }
@@ -307,13 +286,14 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 		}
 
 		response.PushRequest = append(response.PushRequest, pushItem)
+		log.Printf("[user %s] push request: %s, %d children", req.UserName, pushItem.Uuid, len(pushItem.Children))
 	}
 
 	return response, nil
 }
 
 // PurgeReplica implements the FSTreeManager service
-func (s *server) PurgeReplica(ctx context.Context, req *pb.UserName) (*emptypb.Empty, error) {
+func (s *server) PurgeReplica(ctx context.Context, req *pb.PurgeReplicaRequest) (*emptypb.Empty, error) {
 	delete(s.trees, req.UserName)
 
 	return &emptypb.Empty{}, nil

@@ -30,17 +30,25 @@ const (
 // FSTreeManagerClient is the client API for FSTreeManager service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// For all RPCs, user_name is always needed since replica are distinguished by
+// user_name.
 type FSTreeManagerClient interface {
-	FetchReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*MerkleTree, error)
+	FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*MerkleTree, error)
 	PullDiff(ctx context.Context, in *PullRequest, opts ...grpc.CallOption) (*PushRequest, error)
 	// We provide simple New/Remove APIs as a straightforward way to accommodate
-	// the wide variety of file system operations. For simplicity, these APIs do
-	// not automatically update parent or child FSEntries.
-	NewFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	RemoveFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// the wide variety of file system operations.
+	//
+	// For simplicity, these APIs do not automatically update parent or child
+	// FSEntries.
+	NewFSEntry(ctx context.Context, in *NewFSEntryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Use UUID instead of FSEntry since:
+	// 1. UUID is enough to identify a node
+	// 2. FSEntry is inaccessable in many cases
+	RemoveFSEntry(ctx context.Context, in *RemoveFSEntryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// For any fs operations that cannot be handled by New/Remove APIs, just purge
 	// the replica.
-	PurgeReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	PurgeReplica(ctx context.Context, in *PurgeReplicaRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type fSTreeManagerClient struct {
@@ -51,7 +59,7 @@ func NewFSTreeManagerClient(cc grpc.ClientConnInterface) FSTreeManagerClient {
 	return &fSTreeManagerClient{cc}
 }
 
-func (c *fSTreeManagerClient) FetchReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*MerkleTree, error) {
+func (c *fSTreeManagerClient) FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*MerkleTree, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MerkleTree)
 	err := c.cc.Invoke(ctx, FSTreeManager_FetchReplica_FullMethodName, in, out, cOpts...)
@@ -71,7 +79,7 @@ func (c *fSTreeManagerClient) PullDiff(ctx context.Context, in *PullRequest, opt
 	return out, nil
 }
 
-func (c *fSTreeManagerClient) NewFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *fSTreeManagerClient) NewFSEntry(ctx context.Context, in *NewFSEntryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, FSTreeManager_NewFSEntry_FullMethodName, in, out, cOpts...)
@@ -81,7 +89,7 @@ func (c *fSTreeManagerClient) NewFSEntry(ctx context.Context, in *FSEntry, opts 
 	return out, nil
 }
 
-func (c *fSTreeManagerClient) RemoveFSEntry(ctx context.Context, in *FSEntry, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *fSTreeManagerClient) RemoveFSEntry(ctx context.Context, in *RemoveFSEntryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, FSTreeManager_RemoveFSEntry_FullMethodName, in, out, cOpts...)
@@ -91,7 +99,7 @@ func (c *fSTreeManagerClient) RemoveFSEntry(ctx context.Context, in *FSEntry, op
 	return out, nil
 }
 
-func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *UserName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *PurgeReplicaRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, FSTreeManager_PurgeReplica_FullMethodName, in, out, cOpts...)
@@ -104,17 +112,25 @@ func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *UserName, op
 // FSTreeManagerServer is the server API for FSTreeManager service.
 // All implementations must embed UnimplementedFSTreeManagerServer
 // for forward compatibility.
+//
+// For all RPCs, user_name is always needed since replica are distinguished by
+// user_name.
 type FSTreeManagerServer interface {
-	FetchReplica(context.Context, *UserName) (*MerkleTree, error)
+	FetchReplica(context.Context, *FetchReplicaRequest) (*MerkleTree, error)
 	PullDiff(context.Context, *PullRequest) (*PushRequest, error)
 	// We provide simple New/Remove APIs as a straightforward way to accommodate
-	// the wide variety of file system operations. For simplicity, these APIs do
-	// not automatically update parent or child FSEntries.
-	NewFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error)
-	RemoveFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error)
+	// the wide variety of file system operations.
+	//
+	// For simplicity, these APIs do not automatically update parent or child
+	// FSEntries.
+	NewFSEntry(context.Context, *NewFSEntryRequest) (*emptypb.Empty, error)
+	// Use UUID instead of FSEntry since:
+	// 1. UUID is enough to identify a node
+	// 2. FSEntry is inaccessable in many cases
+	RemoveFSEntry(context.Context, *RemoveFSEntryRequest) (*emptypb.Empty, error)
 	// For any fs operations that cannot be handled by New/Remove APIs, just purge
 	// the replica.
-	PurgeReplica(context.Context, *UserName) (*emptypb.Empty, error)
+	PurgeReplica(context.Context, *PurgeReplicaRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedFSTreeManagerServer()
 }
 
@@ -125,19 +141,19 @@ type FSTreeManagerServer interface {
 // pointer dereference when methods are called.
 type UnimplementedFSTreeManagerServer struct{}
 
-func (UnimplementedFSTreeManagerServer) FetchReplica(context.Context, *UserName) (*MerkleTree, error) {
+func (UnimplementedFSTreeManagerServer) FetchReplica(context.Context, *FetchReplicaRequest) (*MerkleTree, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchReplica not implemented")
 }
 func (UnimplementedFSTreeManagerServer) PullDiff(context.Context, *PullRequest) (*PushRequest, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PullDiff not implemented")
 }
-func (UnimplementedFSTreeManagerServer) NewFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error) {
+func (UnimplementedFSTreeManagerServer) NewFSEntry(context.Context, *NewFSEntryRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewFSEntry not implemented")
 }
-func (UnimplementedFSTreeManagerServer) RemoveFSEntry(context.Context, *FSEntry) (*emptypb.Empty, error) {
+func (UnimplementedFSTreeManagerServer) RemoveFSEntry(context.Context, *RemoveFSEntryRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveFSEntry not implemented")
 }
-func (UnimplementedFSTreeManagerServer) PurgeReplica(context.Context, *UserName) (*emptypb.Empty, error) {
+func (UnimplementedFSTreeManagerServer) PurgeReplica(context.Context, *PurgeReplicaRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PurgeReplica not implemented")
 }
 func (UnimplementedFSTreeManagerServer) mustEmbedUnimplementedFSTreeManagerServer() {}
@@ -162,7 +178,7 @@ func RegisterFSTreeManagerServer(s grpc.ServiceRegistrar, srv FSTreeManagerServe
 }
 
 func _FSTreeManager_FetchReplica_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UserName)
+	in := new(FetchReplicaRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -174,7 +190,7 @@ func _FSTreeManager_FetchReplica_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: FSTreeManager_FetchReplica_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FSTreeManagerServer).FetchReplica(ctx, req.(*UserName))
+		return srv.(FSTreeManagerServer).FetchReplica(ctx, req.(*FetchReplicaRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -198,7 +214,7 @@ func _FSTreeManager_PullDiff_Handler(srv interface{}, ctx context.Context, dec f
 }
 
 func _FSTreeManager_NewFSEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FSEntry)
+	in := new(NewFSEntryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -210,13 +226,13 @@ func _FSTreeManager_NewFSEntry_Handler(srv interface{}, ctx context.Context, dec
 		FullMethod: FSTreeManager_NewFSEntry_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FSTreeManagerServer).NewFSEntry(ctx, req.(*FSEntry))
+		return srv.(FSTreeManagerServer).NewFSEntry(ctx, req.(*NewFSEntryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _FSTreeManager_RemoveFSEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FSEntry)
+	in := new(RemoveFSEntryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -228,13 +244,13 @@ func _FSTreeManager_RemoveFSEntry_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: FSTreeManager_RemoveFSEntry_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FSTreeManagerServer).RemoveFSEntry(ctx, req.(*FSEntry))
+		return srv.(FSTreeManagerServer).RemoveFSEntry(ctx, req.(*RemoveFSEntryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _FSTreeManager_PurgeReplica_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UserName)
+	in := new(PurgeReplicaRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -246,7 +262,7 @@ func _FSTreeManager_PurgeReplica_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: FSTreeManager_PurgeReplica_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FSTreeManagerServer).PurgeReplica(ctx, req.(*UserName))
+		return srv.(FSTreeManagerServer).PurgeReplica(ctx, req.(*PurgeReplicaRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

@@ -6,15 +6,15 @@ var fs_tree_manager_pb = require('./fs_tree_manager_pb.js');
 var google_protobuf_struct_pb = require('google-protobuf/google/protobuf/struct_pb.js');
 var google_protobuf_empty_pb = require('google-protobuf/google/protobuf/empty_pb.js');
 
-function serialize_fs_tree_manager_FSEntry(arg) {
-  if (!(arg instanceof fs_tree_manager_pb.FSEntry)) {
-    throw new Error('Expected argument of type fs_tree_manager.FSEntry');
+function serialize_fs_tree_manager_FetchReplicaRequest(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.FetchReplicaRequest)) {
+    throw new Error('Expected argument of type fs_tree_manager.FetchReplicaRequest');
   }
   return Buffer.from(arg.serializeBinary());
 }
 
-function deserialize_fs_tree_manager_FSEntry(buffer_arg) {
-  return fs_tree_manager_pb.FSEntry.deserializeBinary(new Uint8Array(buffer_arg));
+function deserialize_fs_tree_manager_FetchReplicaRequest(buffer_arg) {
+  return fs_tree_manager_pb.FetchReplicaRequest.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
 function serialize_fs_tree_manager_MerkleTree(arg) {
@@ -28,6 +28,17 @@ function deserialize_fs_tree_manager_MerkleTree(buffer_arg) {
   return fs_tree_manager_pb.MerkleTree.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
+function serialize_fs_tree_manager_NewFSEntryRequest(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.NewFSEntryRequest)) {
+    throw new Error('Expected argument of type fs_tree_manager.NewFSEntryRequest');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_fs_tree_manager_NewFSEntryRequest(buffer_arg) {
+  return fs_tree_manager_pb.NewFSEntryRequest.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
 function serialize_fs_tree_manager_PullRequest(arg) {
   if (!(arg instanceof fs_tree_manager_pb.PullRequest)) {
     throw new Error('Expected argument of type fs_tree_manager.PullRequest');
@@ -37,6 +48,17 @@ function serialize_fs_tree_manager_PullRequest(arg) {
 
 function deserialize_fs_tree_manager_PullRequest(buffer_arg) {
   return fs_tree_manager_pb.PullRequest.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
+function serialize_fs_tree_manager_PurgeReplicaRequest(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.PurgeReplicaRequest)) {
+    throw new Error('Expected argument of type fs_tree_manager.PurgeReplicaRequest');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_fs_tree_manager_PurgeReplicaRequest(buffer_arg) {
+  return fs_tree_manager_pb.PurgeReplicaRequest.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
 function serialize_fs_tree_manager_PushRequest(arg) {
@@ -50,15 +72,15 @@ function deserialize_fs_tree_manager_PushRequest(buffer_arg) {
   return fs_tree_manager_pb.PushRequest.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
-function serialize_fs_tree_manager_UserName(arg) {
-  if (!(arg instanceof fs_tree_manager_pb.UserName)) {
-    throw new Error('Expected argument of type fs_tree_manager.UserName');
+function serialize_fs_tree_manager_RemoveFSEntryRequest(arg) {
+  if (!(arg instanceof fs_tree_manager_pb.RemoveFSEntryRequest)) {
+    throw new Error('Expected argument of type fs_tree_manager.RemoveFSEntryRequest');
   }
   return Buffer.from(arg.serializeBinary());
 }
 
-function deserialize_fs_tree_manager_UserName(buffer_arg) {
-  return fs_tree_manager_pb.UserName.deserializeBinary(new Uint8Array(buffer_arg));
+function deserialize_fs_tree_manager_RemoveFSEntryRequest(buffer_arg) {
+  return fs_tree_manager_pb.RemoveFSEntryRequest.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
 function serialize_google_protobuf_Empty(arg) {
@@ -73,15 +95,17 @@ function deserialize_google_protobuf_Empty(buffer_arg) {
 }
 
 
+// For all RPCs, user_name is always needed since replica are distinguished by
+// user_name.
 var FSTreeManagerService = exports.FSTreeManagerService = {
   fetchReplica: {
     path: '/fs_tree_manager.FSTreeManager/FetchReplica',
     requestStream: false,
     responseStream: false,
-    requestType: fs_tree_manager_pb.UserName,
+    requestType: fs_tree_manager_pb.FetchReplicaRequest,
     responseType: fs_tree_manager_pb.MerkleTree,
-    requestSerialize: serialize_fs_tree_manager_UserName,
-    requestDeserialize: deserialize_fs_tree_manager_UserName,
+    requestSerialize: serialize_fs_tree_manager_FetchReplicaRequest,
+    requestDeserialize: deserialize_fs_tree_manager_FetchReplicaRequest,
     responseSerialize: serialize_fs_tree_manager_MerkleTree,
     responseDeserialize: deserialize_fs_tree_manager_MerkleTree,
   },
@@ -97,27 +121,32 @@ var FSTreeManagerService = exports.FSTreeManagerService = {
     responseDeserialize: deserialize_fs_tree_manager_PushRequest,
   },
   // We provide simple New/Remove APIs as a straightforward way to accommodate
-// the wide variety of file system operations. For simplicity, these APIs do
-// not automatically update parent or child FSEntries.
+// the wide variety of file system operations.
+//
+// For simplicity, these APIs do not automatically update parent or child
+// FSEntries.
 newFSEntry: {
     path: '/fs_tree_manager.FSTreeManager/NewFSEntry',
     requestStream: false,
     responseStream: false,
-    requestType: fs_tree_manager_pb.FSEntry,
+    requestType: fs_tree_manager_pb.NewFSEntryRequest,
     responseType: google_protobuf_empty_pb.Empty,
-    requestSerialize: serialize_fs_tree_manager_FSEntry,
-    requestDeserialize: deserialize_fs_tree_manager_FSEntry,
+    requestSerialize: serialize_fs_tree_manager_NewFSEntryRequest,
+    requestDeserialize: deserialize_fs_tree_manager_NewFSEntryRequest,
     responseSerialize: serialize_google_protobuf_Empty,
     responseDeserialize: deserialize_google_protobuf_Empty,
   },
-  removeFSEntry: {
+  // Use UUID instead of FSEntry since:
+// 1. UUID is enough to identify a node
+// 2. FSEntry is inaccessable in many cases
+removeFSEntry: {
     path: '/fs_tree_manager.FSTreeManager/RemoveFSEntry',
     requestStream: false,
     responseStream: false,
-    requestType: fs_tree_manager_pb.FSEntry,
+    requestType: fs_tree_manager_pb.RemoveFSEntryRequest,
     responseType: google_protobuf_empty_pb.Empty,
-    requestSerialize: serialize_fs_tree_manager_FSEntry,
-    requestDeserialize: deserialize_fs_tree_manager_FSEntry,
+    requestSerialize: serialize_fs_tree_manager_RemoveFSEntryRequest,
+    requestDeserialize: deserialize_fs_tree_manager_RemoveFSEntryRequest,
     responseSerialize: serialize_google_protobuf_Empty,
     responseDeserialize: deserialize_google_protobuf_Empty,
   },
@@ -127,10 +156,10 @@ purgeReplica: {
     path: '/fs_tree_manager.FSTreeManager/PurgeReplica',
     requestStream: false,
     responseStream: false,
-    requestType: fs_tree_manager_pb.UserName,
+    requestType: fs_tree_manager_pb.PurgeReplicaRequest,
     responseType: google_protobuf_empty_pb.Empty,
-    requestSerialize: serialize_fs_tree_manager_UserName,
-    requestDeserialize: deserialize_fs_tree_manager_UserName,
+    requestSerialize: serialize_fs_tree_manager_PurgeReplicaRequest,
+    requestDeserialize: deserialize_fs_tree_manager_PurgeReplicaRequest,
     responseSerialize: serialize_google_protobuf_Empty,
     responseDeserialize: deserialize_google_protobuf_Empty,
   },

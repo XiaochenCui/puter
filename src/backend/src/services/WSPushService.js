@@ -18,6 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 const BaseService = require("./BaseService");
+const { sendFsNew } = require('../routers/filesystem_api/fs_tree_manager/fs_update');
 class WSPushService  extends BaseService {
     /**
     * Initializes the WSPushService by setting up event listeners for various file system operations.
@@ -70,9 +71,6 @@ class WSPushService  extends BaseService {
         })();
 
         Object.assign(response, metadata);
-
-        // skip event broadcast to test client-replica sync
-        return;
 
         this.svc_event.emit('outer.gui.item.added', {
             user_id_list,
@@ -177,6 +175,8 @@ class WSPushService  extends BaseService {
             user_id_list,
             response,
         });
+
+        sendFsNew(response);
     }
 
 

@@ -18,7 +18,6 @@
  */
 
 'use strict';
-const { Context } = require('../../../util/context.js');
 
 // -----------------------------------------------------------------------//
 // WebSocket handler for replica/pull_diff
@@ -87,6 +86,12 @@ module.exports = {
                         })),
                     })),
                 };
+
+                if ( pushRequest.push_request.length > 0 ) {
+                    console.log('push request:', pushRequest);
+                } else {
+                    console.log('push request: no push request');
+                }
 
                 socket.emit('replica/pull_diff/success', {
                     success: true,

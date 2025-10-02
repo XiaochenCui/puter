@@ -160,8 +160,12 @@ class ReplicaManager {
             this.handleReplicaError(data);
         });
 
-        this.socket.on('replica/pull_diff', (data) => {
+        this.socket.on('replica/pull_diff/success', (data) => {
             this.handlePushRequest(data);
+        });
+
+        this.socket.on('replica/pull_diff/error', (data) => {
+            this.handlePullDiffError(data);
         });
     }
 
@@ -193,33 +197,35 @@ class ReplicaManager {
         this.available = true;
     }
 
-    /**
-     * Handle replica fetch error
-     */
     handleReplicaError(data) {
-        console.error('Replica Manager: Failed to fetch replica:', data);
+        console.error('replica manager: failed to fetch replica:', data);
+        this.available = false;
+    }
 
-        // Emit custom event for error handling
-        if ( typeof window !== 'undefined' ) {
-            window.dispatchEvent(new CustomEvent('replica:error', {
-                detail: { error: data },
-            }));
-        }
+    handlePullDiffError(data) {
+        console.error('replica manager: failed to pull diff:', data);
+        this.available = false;
     }
 
     /**
      * Handle push request
      */
     handlePushRequest(data) {
-        console.log('push request:', data);
+        const pushRequest = data?.data?.push_request;
 
-        if ( !window.FSTree || !data.push_request ) {
+        if ( !this.available || !pushRequest ) {
             return;
         }
 
         const nextPullRequest = [];
 
-        for ( const pushItem of data.push_request ) {
+        if ( pushRequest.length > 0 ) {
+            console.log('push request:', pushRequest);
+        } else {
+            console.log('push request: no push request');
+        }
+
+        for ( const pushItem of pushRequest ) {
             // Update the fs_entry for the level-1 node
             const node = window.FSTree.nodes[pushItem.uuid];
             if ( node ) {
