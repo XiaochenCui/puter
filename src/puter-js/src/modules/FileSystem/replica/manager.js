@@ -249,6 +249,7 @@ class ReplicaManager {
                 
                 // Create PullRequest format according to proto definition
                 const pullRequest = {
+                    user_name: this.username,
                     pull_request: [
                         {
                             uuid: rootNode.uuid,

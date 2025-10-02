@@ -948,7 +948,7 @@ proto.fs_tree_manager.FSEntry.prototype.hasMetadata = function() {
  * @private {!Array<number>}
  * @const
  */
-proto.fs_tree_manager.PullRequest.repeatedFields_ = [1];
+proto.fs_tree_manager.PullRequest.repeatedFields_ = [2];
 
 
 
@@ -981,6 +981,7 @@ proto.fs_tree_manager.PullRequest.prototype.toObject = function(opt_includeInsta
  */
 proto.fs_tree_manager.PullRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
+    userName: jspb.Message.getFieldWithDefault(msg, 1, ""),
     pullRequestList: jspb.Message.toObjectList(msg.getPullRequestList(),
     proto.fs_tree_manager.PullRequestItem.toObject, includeInstance)
   };
@@ -1020,6 +1021,10 @@ proto.fs_tree_manager.PullRequest.deserializeBinaryFromReader = function(msg, re
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setUserName(value);
+      break;
+    case 2:
       var value = new proto.fs_tree_manager.PullRequestItem;
       reader.readMessage(value,proto.fs_tree_manager.PullRequestItem.deserializeBinaryFromReader);
       msg.addPullRequest(value);
@@ -1053,10 +1058,17 @@ proto.fs_tree_manager.PullRequest.prototype.serializeBinary = function() {
  */
 proto.fs_tree_manager.PullRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
+  f = message.getUserName();
+  if (f.length > 0) {
+    writer.writeString(
+      1,
+      f
+    );
+  }
   f = message.getPullRequestList();
   if (f.length > 0) {
     writer.writeRepeatedMessage(
-      1,
+      2,
       f,
       proto.fs_tree_manager.PullRequestItem.serializeBinaryToWriter
     );
@@ -1065,12 +1077,30 @@ proto.fs_tree_manager.PullRequest.serializeBinaryToWriter = function(message, wr
 
 
 /**
- * repeated PullRequestItem pull_request = 1;
+ * optional string user_name = 1;
+ * @return {string}
+ */
+proto.fs_tree_manager.PullRequest.prototype.getUserName = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.fs_tree_manager.PullRequest} returns this
+ */
+proto.fs_tree_manager.PullRequest.prototype.setUserName = function(value) {
+  return jspb.Message.setProto3StringField(this, 1, value);
+};
+
+
+/**
+ * repeated PullRequestItem pull_request = 2;
  * @return {!Array<!proto.fs_tree_manager.PullRequestItem>}
  */
 proto.fs_tree_manager.PullRequest.prototype.getPullRequestList = function() {
   return /** @type{!Array<!proto.fs_tree_manager.PullRequestItem>} */ (
-    jspb.Message.getRepeatedWrapperField(this, proto.fs_tree_manager.PullRequestItem, 1));
+    jspb.Message.getRepeatedWrapperField(this, proto.fs_tree_manager.PullRequestItem, 2));
 };
 
 
@@ -1079,7 +1109,7 @@ proto.fs_tree_manager.PullRequest.prototype.getPullRequestList = function() {
  * @return {!proto.fs_tree_manager.PullRequest} returns this
 */
 proto.fs_tree_manager.PullRequest.prototype.setPullRequestList = function(value) {
-  return jspb.Message.setRepeatedWrapperField(this, 1, value);
+  return jspb.Message.setRepeatedWrapperField(this, 2, value);
 };
 
 
@@ -1089,7 +1119,7 @@ proto.fs_tree_manager.PullRequest.prototype.setPullRequestList = function(value)
  * @return {!proto.fs_tree_manager.PullRequestItem}
  */
 proto.fs_tree_manager.PullRequest.prototype.addPullRequest = function(opt_value, opt_index) {
-  return jspb.Message.addToRepeatedWrapperField(this, 1, opt_value, proto.fs_tree_manager.PullRequestItem, opt_index);
+  return jspb.Message.addToRepeatedWrapperField(this, 2, opt_value, proto.fs_tree_manager.PullRequestItem, opt_index);
 };
 
 
@@ -1268,7 +1298,7 @@ proto.fs_tree_manager.PullRequestItem.prototype.setMerkleHash = function(value) 
  * @private {!Array<number>}
  * @const
  */
-proto.fs_tree_manager.PushRequest.repeatedFields_ = [1];
+proto.fs_tree_manager.PushRequest.repeatedFields_ = [2];
 
 
 
@@ -1301,6 +1331,7 @@ proto.fs_tree_manager.PushRequest.prototype.toObject = function(opt_includeInsta
  */
 proto.fs_tree_manager.PushRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
+    userName: jspb.Message.getFieldWithDefault(msg, 1, ""),
     pushRequestList: jspb.Message.toObjectList(msg.getPushRequestList(),
     proto.fs_tree_manager.PushRequestItem.toObject, includeInstance)
   };
@@ -1340,6 +1371,10 @@ proto.fs_tree_manager.PushRequest.deserializeBinaryFromReader = function(msg, re
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setUserName(value);
+      break;
+    case 2:
       var value = new proto.fs_tree_manager.PushRequestItem;
       reader.readMessage(value,proto.fs_tree_manager.PushRequestItem.deserializeBinaryFromReader);
       msg.addPushRequest(value);
@@ -1373,10 +1408,17 @@ proto.fs_tree_manager.PushRequest.prototype.serializeBinary = function() {
  */
 proto.fs_tree_manager.PushRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
+  f = message.getUserName();
+  if (f.length > 0) {
+    writer.writeString(
+      1,
+      f
+    );
+  }
   f = message.getPushRequestList();
   if (f.length > 0) {
     writer.writeRepeatedMessage(
-      1,
+      2,
       f,
       proto.fs_tree_manager.PushRequestItem.serializeBinaryToWriter
     );
@@ -1385,12 +1427,30 @@ proto.fs_tree_manager.PushRequest.serializeBinaryToWriter = function(message, wr
 
 
 /**
- * repeated PushRequestItem push_request = 1;
+ * optional string user_name = 1;
+ * @return {string}
+ */
+proto.fs_tree_manager.PushRequest.prototype.getUserName = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.fs_tree_manager.PushRequest} returns this
+ */
+proto.fs_tree_manager.PushRequest.prototype.setUserName = function(value) {
+  return jspb.Message.setProto3StringField(this, 1, value);
+};
+
+
+/**
+ * repeated PushRequestItem push_request = 2;
  * @return {!Array<!proto.fs_tree_manager.PushRequestItem>}
  */
 proto.fs_tree_manager.PushRequest.prototype.getPushRequestList = function() {
   return /** @type{!Array<!proto.fs_tree_manager.PushRequestItem>} */ (
-    jspb.Message.getRepeatedWrapperField(this, proto.fs_tree_manager.PushRequestItem, 1));
+    jspb.Message.getRepeatedWrapperField(this, proto.fs_tree_manager.PushRequestItem, 2));
 };
 
 
@@ -1399,7 +1459,7 @@ proto.fs_tree_manager.PushRequest.prototype.getPushRequestList = function() {
  * @return {!proto.fs_tree_manager.PushRequest} returns this
 */
 proto.fs_tree_manager.PushRequest.prototype.setPushRequestList = function(value) {
-  return jspb.Message.setRepeatedWrapperField(this, 1, value);
+  return jspb.Message.setRepeatedWrapperField(this, 2, value);
 };
 
 
@@ -1409,7 +1469,7 @@ proto.fs_tree_manager.PushRequest.prototype.setPushRequestList = function(value)
  * @return {!proto.fs_tree_manager.PushRequestItem}
  */
 proto.fs_tree_manager.PushRequest.prototype.addPushRequest = function(opt_value, opt_index) {
-  return jspb.Message.addToRepeatedWrapperField(this, 1, opt_value, proto.fs_tree_manager.PushRequestItem, opt_index);
+  return jspb.Message.addToRepeatedWrapperField(this, 2, opt_value, proto.fs_tree_manager.PushRequestItem, opt_index);
 };
 
 

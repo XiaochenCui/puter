@@ -56,7 +56,7 @@ module.exports = {
     const requestMsg = new UserName();
     requestMsg.setUserName(socket.user.username);
 
-    client.FetchReplica(requestMsg, (err, resp) => {
+    client.fetchReplica(requestMsg, (err, resp) => {
       if (err) {
         log.error('FetchReplica error:', err);
         return socket.emit('replica/fetch/error', {

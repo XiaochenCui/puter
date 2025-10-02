@@ -383,6 +383,7 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.FSEntry) (*emptypb.E
 func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
 	log.Printf("=== gRPC Request Received ===")
 	log.Printf("Method: PullDiff")
+	log.Printf("User: %s", req.UserName)
 	log.Printf("Timestamp: %s", time.Now().Format(time.RFC3339))
 	log.Printf("PullRequest Items Count: %d", len(req.PullRequest))
 
@@ -394,14 +395,53 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 	}
 	log.Printf("=============================")
 
+	// Get the current tree for this user
+	var tree *pb.MerkleTree
+	var err error
+	if cachedTree, exists := s.trees[req.UserName]; exists {
+		tree = cachedTree
+	} else {
+		tree, err = s.buildUserFSTree(req.UserName)
+		if err != nil {
+			log.Printf("Error building FS tree for user %s: %v", req.UserName, err)
+			return nil, err
+		}
+		s.trees[req.UserName] = tree
+	}
+
+	// Get the current root hash
+	currentRootHash := tree.Nodes[tree.RootUuid].MerkleHash
+
+	// Find the root hash from the pull request (look for root UUID)
+	var clientRootHash string
+	for _, item := range req.PullRequest {
+		if item.Uuid == tree.RootUuid {
+			clientRootHash = item.MerkleHash
+			break
+		}
+	}
+
+	// Compare and print the result
+	log.Printf("=== ROOT HASH COMPARISON ===")
+	log.Printf("Current Root Hash: %s", currentRootHash)
+	log.Printf("Client Root Hash:  %s", clientRootHash)
+	if currentRootHash == clientRootHash {
+		log.Printf("RESULT: HASHES MATCH - No sync needed")
+	} else {
+		log.Printf("RESULT: HASHES DIFFER - Sync required")
+	}
+	log.Printf("=============================")
+
 	// For now, return an empty PushRequest
 	// In a real implementation, this would compare the requested items
 	// with the current state and return the differences
 	response := &pb.PushRequest{
+		UserName:    req.UserName, // Set the user_name in the response
 		PushRequest: []*pb.PushRequestItem{},
 	}
 
 	log.Printf("=== PullDiff Response ===")
+	log.Printf("User: %s", response.UserName)
 	log.Printf("PushRequest Items Count: %d", len(response.PushRequest))
 	log.Printf("=========================")
 

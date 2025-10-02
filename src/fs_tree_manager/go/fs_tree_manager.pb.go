@@ -249,8 +249,10 @@ func (x *FSEntry) GetMetadata() *structpb.Struct {
 }
 
 type PullRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PullRequest   []*PullRequestItem     `protobuf:"bytes,1,rep,name=pull_request,json=pullRequest,proto3" json:"pull_request,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// user_name is always needed since replica are distinguished by user_name
+	UserName      string             `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	PullRequest   []*PullRequestItem `protobuf:"bytes,2,rep,name=pull_request,json=pullRequest,proto3" json:"pull_request,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -283,6 +285,13 @@ func (x *PullRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use PullRequest.ProtoReflect.Descriptor instead.
 func (*PullRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PullRequest) GetUserName() string {
+	if x != nil {
+		return x.UserName
+	}
+	return ""
 }
 
 func (x *PullRequest) GetPullRequest() []*PullRequestItem {
@@ -345,8 +354,10 @@ func (x *PullRequestItem) GetMerkleHash() string {
 }
 
 type PushRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PushRequest   []*PushRequestItem     `protobuf:"bytes,1,rep,name=push_request,json=pushRequest,proto3" json:"push_request,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// user_name is always needed since replica are distinguished by user_name
+	UserName      string             `protobuf:"bytes,1,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	PushRequest   []*PushRequestItem `protobuf:"bytes,2,rep,name=push_request,json=pushRequest,proto3" json:"push_request,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -379,6 +390,13 @@ func (x *PushRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use PushRequest.ProtoReflect.Descriptor instead.
 func (*PushRequest) Descriptor() ([]byte, []int) {
 	return file_fs_tree_manager_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PushRequest) GetUserName() string {
+	if x != nil {
+		return x.UserName
+	}
+	return ""
 }
 
 func (x *PushRequest) GetPushRequest() []*PushRequestItem {
@@ -481,15 +499,17 @@ const file_fs_tree_manager_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
 	"\x05value\x18\x02 \x01(\v2\x1b.fs_tree_manager.MerkleNodeR\x05value:\x028\x01\">\n" +
 	"\aFSEntry\x123\n" +
-	"\bmetadata\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"R\n" +
-	"\vPullRequest\x12C\n" +
-	"\fpull_request\x18\x01 \x03(\v2 .fs_tree_manager.PullRequestItemR\vpullRequest\"F\n" +
+	"\bmetadata\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"o\n" +
+	"\vPullRequest\x12\x1b\n" +
+	"\tuser_name\x18\x01 \x01(\tR\buserName\x12C\n" +
+	"\fpull_request\x18\x02 \x03(\v2 .fs_tree_manager.PullRequestItemR\vpullRequest\"F\n" +
 	"\x0fPullRequestItem\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +
 	"\vmerkle_hash\x18\x02 \x01(\tR\n" +
-	"merkleHash\"R\n" +
-	"\vPushRequest\x12C\n" +
-	"\fpush_request\x18\x01 \x03(\v2 .fs_tree_manager.PushRequestItemR\vpushRequest\"\xb9\x01\n" +
+	"merkleHash\"o\n" +
+	"\vPushRequest\x12\x1b\n" +
+	"\tuser_name\x18\x01 \x01(\tR\buserName\x12C\n" +
+	"\fpush_request\x18\x02 \x03(\v2 .fs_tree_manager.PushRequestItemR\vpushRequest\"\xb9\x01\n" +
 	"\x0fPushRequestItem\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +
 	"\vmerkle_hash\x18\x02 \x01(\tR\n" +

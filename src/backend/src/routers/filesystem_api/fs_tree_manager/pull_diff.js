@@ -49,6 +49,9 @@ module.exports = {
     try {
       // Build the PullRequest message
       const requestMsg = new PullRequest();
+      
+      // Set the user_name at the top level
+      requestMsg.setUserName(data.user_name);
 
       // Add each pull request item
       if (data.pull_request && Array.isArray(data.pull_request)) {
@@ -60,7 +63,7 @@ module.exports = {
         });
       }
 
-      client.PullDiff(requestMsg, (err, resp) => {
+      client.pullDiff(requestMsg, (err, resp) => {
         if (err) {
           console.error('PullDiff error:', err);
           return socket.emit('replica/pull_diff/error', {
