@@ -162,6 +162,11 @@ class ReplicaManager {
 
         this.socket.on('replica/pull_diff/success', (data) => {
             this.handlePushRequest(data);
+
+            {
+                const debug_node_123 = this.FSTree.findNodeByPath('/admin/Desktop');
+                console.log(`debug: found node: ${debug_node_123.fs_entry.path} (uuid: ${debug_node_123.uuid}), children: ${debug_node_123.children_uuids}`);
+            }
         });
 
         this.socket.on('replica/pull_diff/error', (data) => {
@@ -190,11 +195,11 @@ class ReplicaManager {
      * Handle successful replica fetch
      */
     handleReplicaSuccess(data) {
-        console.log('Replica Manager: Received replica data:', data);
-
         // Initialize the FSTree
-        window.FSTree = new FSTree(data.data);
+        this.FSTree = new FSTree(data.data);
         this.available = true;
+
+        console.log('client-replica initialized');
     }
 
     handleReplicaError(data) {
@@ -226,43 +231,103 @@ class ReplicaManager {
         }
 
         for ( const pushItem of pushRequest ) {
-            // Update the fs_entry for the level-1 node
-            const node = window.FSTree.nodes[pushItem.uuid];
+            console.log(`remote fsentry: ${pushItem.fs_entry.path} (merkle_hash: ${pushItem.merkle_hash})`);
+
+            // process level-1 node
+            const node = this.FSTree.nodes[pushItem.uuid];
             if ( node ) {
+                // update existing
                 node.fs_entry = pushItem.fs_entry;
                 node.merkle_hash = pushItem.merkle_hash;
+            } else {
+                // new fsentry on remote, add it and fetch its children
+                this.addNode(pushItem);
+
+                // Add to parent's children
+                if ( pushItem.fs_entry.parent_uid ) {
+                    const parentNode = this.FSTree.nodes[pushItem.fs_entry.parent_uid];
+                    if ( parentNode ) {
+                        if ( !parentNode.children_uuids ) {
+                            parentNode.children_uuids = [];
+                        }
+                        parentNode.children_uuids.push(pushItem.uuid);
+                    } else {
+                        console.error(`parent node not found: ${pushItem.fs_entry.parent_uid}`);
+                    }
+                } else {
+                    console.error(`parent node not found: ${pushItem.fs_entry.id}`);
+                }
+
+                nextPullRequest.push({
+                    uuid: pushItem.uuid,
+                    // use empty hash to force-fetch its children
+                    merkle_hash: '',
+                });
+                continue;
             }
 
-            // Process children
+            // process children
             if ( pushItem.children ) {
                 const localChildren = node ? (node.children_uuids || []) : [];
                 const serverChildren = pushItem.children.map(child => child.uuid);
 
-                // Find nodes to remove (missing from server response)
+                // fsentry removed from server, remove it in local as well
+                console.log(`local children: ${localChildren}`);
+                console.log(`server children: ${serverChildren}`);
                 for ( const localChildId of localChildren ) {
                     if ( !serverChildren.includes(localChildId) ) {
-                        this.removeNodeAndAncestors(localChildId);
+                        this.removeNodeAndDescendants(localChildId);
+                    }
+
+                    {
+                        const debug_node_123 = this.FSTree.findNodeByPath('/admin/Desktop');
+                        console.log(`debug-3: found node: ${debug_node_123.fs_entry.path} (uuid: ${debug_node_123.uuid}), children: ${debug_node_123.children_uuids}`);
                     }
                 }
 
-                // Process server children
+                {
+                    const debug_node_123 = this.FSTree.findNodeByPath('/admin/Desktop');
+                    console.log(`debug-2: found node: ${debug_node_123.fs_entry.path} (uuid: ${debug_node_123.uuid}), children: ${debug_node_123.children_uuids}`);
+                }
+
                 for ( const child of pushItem.children ) {
-                    const localChild = window.FSTree.nodes[child.uuid];
+                    const localChild = this.FSTree.nodes[child.uuid];
+
+                    if ( localChild ) {
+                        console.log(`remote fsentry (level_2): ${child.fs_entry.path} (merkle_hash: ${child.merkle_hash}, uuid: ${child.uuid})`);
+                        if ( child.fs_entry.path.includes('Desktop') ) {
+                            console.log(`local fsentry (level_2): ${localChild.fs_entry.path} (merkle_hash: ${localChild.merkle_hash})`);
+                        }
+                    }
 
                     if ( !localChild ) {
-                        // Add new node
+                        // new fsentry on remote, add it and fetch its children
                         this.addNode(child);
+
+                        // Add to parent's children
+                        const parentNode = this.FSTree.nodes[pushItem.fs_entry.id];
+                        if ( parentNode ) {
+                            if ( !parentNode.children_uuids ) {
+                                parentNode.children_uuids = [];
+                            }
+                            parentNode.children_uuids.push(child.uuid);
+                        } else {
+                            console.error(`parent node not found: ${pushItem.fs_entry.id}`);
+                        }
+
                         nextPullRequest.push({
                             uuid: child.uuid,
-                            merkle_hash: child.merkle_hash,
+                            // use empty hash to force-fetch its children
+                            merkle_hash: '',
                         });
                     } else if ( localChild.merkle_hash !== child.merkle_hash ) {
-                        // Update existing node
+                        // fsentry updated on remote, update and fetch its children
                         localChild.fs_entry = child.fs_entry;
                         localChild.merkle_hash = child.merkle_hash;
                         nextPullRequest.push({
                             uuid: child.uuid,
-                            merkle_hash: child.merkle_hash,
+                            // use empty hash to force-fetch its children
+                            merkle_hash: '',
                         });
                     }
                 }
@@ -275,6 +340,7 @@ class ReplicaManager {
                 user_name: this.username,
                 pull_request: nextPullRequest,
             });
+            console.log(`sent continuous pull request: ${JSON.stringify(nextPullRequest)}`);
         }
     }
 
@@ -290,32 +356,37 @@ class ReplicaManager {
             children_uuids: [],
         };
 
-        window.FSTree.nodes[nodeData.uuid] = newNode;
+        this.FSTree.nodes[nodeData.uuid] = newNode;
 
-        // Add to parent's children
-        if ( nodeData.fs_entry.parent_uid ) {
-            const parentNode = window.FSTree.nodes[nodeData.fs_entry.parent_uid];
-            if ( parentNode ) {
-                if ( !parentNode.children_uuids ) {
-                    parentNode.children_uuids = [];
-                }
-                parentNode.children_uuids.push(nodeData.uuid);
-            }
-        }
+        // // Add to parent's children
+        // if ( nodeData.fs_entry.parent_uid ) {
+        //     const parentNode = this.FSTree.nodes[nodeData.fs_entry.parent_uid];
+        //     if ( parentNode ) {
+        //         if ( !parentNode.children_uuids ) {
+        //             parentNode.children_uuids = [];
+        //         }
+        //         parentNode.children_uuids.push(nodeData.uuid);
+        //     }
+        // }
     }
 
     /**
-     * Remove a node and all its ancestors from the local replica
+     * Remove a node and all its descendants from the local replica
      */
-    removeNodeAndAncestors(nodeId) {
-        const node = window.FSTree.nodes[nodeId];
+    removeNodeAndDescendants(nodeId) {
+        const node = this.FSTree.nodes[nodeId];
         if ( !node ) {
             return;
         }
 
+        {
+            const parentNode = this.FSTree.nodes[node.parent_uuid];
+            console.log(`before remove, parent: ${parentNode.fs_entry.path} (uuid: ${parentNode.uuid}), children: ${parentNode.children_uuids}`);
+        }
+
         // Remove from parent's children
         if ( node.parent_uuid ) {
-            const parentNode = window.FSTree.nodes[node.parent_uuid];
+            const parentNode = this.FSTree.nodes[node.parent_uuid];
             if ( parentNode && parentNode.children_uuids ) {
                 const index = parentNode.children_uuids.indexOf(nodeId);
                 if ( index > -1 ) {
@@ -324,15 +395,25 @@ class ReplicaManager {
             }
         }
 
+        {
+            const parentNode = this.FSTree.nodes[node.parent_uuid];
+            console.log(`after remove, parent: ${parentNode.fs_entry.path} (uuid: ${parentNode.uuid}), children: ${parentNode.children_uuids}`);
+        }
+
+        {
+            const debug_node_123 = this.FSTree.findNodeByPath('/admin/Desktop');
+            console.log(`debug: found node: ${debug_node_123.fs_entry.path} (uuid: ${debug_node_123.uuid}), children: ${debug_node_123.children_uuids}`);
+        }
+
         // Remove all children recursively
         if ( node.children_uuids ) {
             for ( const childId of node.children_uuids ) {
-                this.removeNodeAndAncestors(childId);
+                this.removeNodeAndDescendants(childId);
             }
         }
 
         // Remove the node itself
-        delete window.FSTree.nodes[nodeId];
+        delete this.FSTree.nodes[nodeId];
     }
 
     /**
@@ -359,16 +440,22 @@ class ReplicaManager {
         this.pullDiffInterval = setInterval(() => {
             this.pullDiff();
         }, 5000);
+
+        // // debug
+        // this.debugInterval = setInterval(() => {
+        //     const node = this.FSTree.findNodeByPath('/admin/Desktop');
+        //     console.log(`readdir: found node: ${node.fs_entry.path} (uuid: ${node.uuid}), children: ${node.children_uuids}`);
+        // }, 500);
     }
 
     pullDiff() {
-        if ( !this.isSocketConnected() || !window.FSTree ) {
+        if ( !this.isSocketConnected() || !this.FSTree ) {
             this.stopPullDiff();
             return;
         }
 
         try {
-            const rootNode = window.FSTree.nodes[window.FSTree.rootId];
+            const rootNode = this.FSTree.nodes[this.FSTree.rootId];
             if ( rootNode && rootNode.merkle_hash ) {
                 // Create PullRequest format according to proto definition
                 const pullRequest = {

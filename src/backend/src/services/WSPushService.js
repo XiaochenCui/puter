@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-const BaseService = require("./BaseService");
-const { sendFsNew } = require('../routers/filesystem_api/fs_tree_manager/fs_update');
+const BaseService = require('./BaseService');
+const { sendFsNew, sendFsRemove } = require('../routers/filesystem_api/fs_tree_manager/fs_update');
 class WSPushService  extends BaseService {
     /**
     * Initializes the WSPushService by setting up event listeners for various file system operations.
-    * 
+    *
     * @param {Object} options - The configuration options for the service.
     * @param {Object} options.services - An object containing service dependencies.
     */
-    async _init () {
+    async _init() {
         this.svc_event = this.services.get('event');
 
         this.svc_event.on('fs.create.*', this._on_fs_create.bind(this));
@@ -34,17 +34,16 @@ class WSPushService  extends BaseService {
         this.svc_event.on('fs.move.*', this._on_fs_move.bind(this));
         this.svc_event.on('fs.pending.*', this._on_fs_pending.bind(this));
         this.svc_event.on('fs.storage.upload-progress',
-            this._on_upload_progress.bind(this));
+                        this._on_upload_progress.bind(this));
         this.svc_event.on('fs.storage.progress.*',
-            this._on_upload_progress.bind(this));
+                        this._on_upload_progress.bind(this));
         this.svc_event.on('puter-exec.submission.done',
-            this._on_submission_done.bind(this));
+                        this._on_submission_done.bind(this));
         this.svc_event.on('outer.gui.*',
-            this._on_outer_gui.bind(this));
+                        this._on_outer_gui.bind(this));
     }
 
-
-    async _on_fs_create (key, data) {
+    async _on_fs_create(key, data) {
         const { node, context } = data;
 
         const metadata = {
@@ -59,7 +58,6 @@ class WSPushService  extends BaseService {
         }
 
         const response = await node.getSafeEntry({ thumbnail: true });
-
 
         const user_id_list = await (async () => {
             // NOTE: Using a set because eventually we will need to dispatch
@@ -76,26 +74,29 @@ class WSPushService  extends BaseService {
             user_id_list,
             response,
         });
-    }
 
+        for ( const user_id of user_id_list ) {
+            await sendFsNew(user_id, response);
+        }
+    }
 
     /**
     * Handles file system update events.
-    * 
+    *
     * @param {string} key - The event key.
     * @param {Object} data - The event data containing node and context information.
     * @returns {Promise<void>} A promise that resolves when the update has been processed.
-    * 
+    *
     * @description
     * This method is triggered when a file or directory is updated. It retrieves
     * metadata from the context, fetches the updated node's entry, determines the
     * relevant user IDs, and emits an event to notify the GUI of the update.
-    * 
+    *
     * @note
     * - The method uses a set for user IDs to prepare for future multi-user dispatch.
     * - If no specific user ID is provided in the metadata, it falls back to the node's user ID.
     */
-    async _on_fs_update (key, data) {
+    async _on_fs_update(key, data) {
         const { node, context } = data;
 
         const metadata = {
@@ -128,12 +129,11 @@ class WSPushService  extends BaseService {
         });
     }
 
-
     /**
     * Handles file system move events by emitting appropriate GUI update events.
-    * 
+    *
     * This method is triggered when a file or directory is moved within the file system.
-    * It collects necessary metadata, updates the response with the old path, and 
+    * It collects necessary metadata, updates the response with the old path, and
     * broadcasts the event to update the GUI for the affected users.
     *
     * @param {string} key - The event key triggering this method.
@@ -143,7 +143,7 @@ class WSPushService  extends BaseService {
     *   - {Context} context - The context in which the move operation occurred.
     * @returns {Promise<void>} A promise that resolves when the event has been emitted.
     */
-    async _on_fs_move (key, data) {
+    async _on_fs_move(key, data) {
         const { moved, old_path, context } = data;
 
         const metadata = {
@@ -176,22 +176,26 @@ class WSPushService  extends BaseService {
             response,
         });
 
-        sendFsNew(response);
+        // NB: UUID comes from uuid/uid, need to handle both.
+        const uuid = response.uuid || response.uid;
+        for ( const user_id of user_id_list ) {
+            await sendFsRemove(user_id, uuid);
+            await sendFsNew(user_id, response);
+        }
     }
-
 
     /**
     * Handles the 'fs.pending' event, preparing and emitting data for items that are pending processing.
-    * 
+    *
     * @param {string} key - The event key, typically starting with 'fs.pending.'.
     * @param {Object} data - An object containing the fsentry and context of the pending file system operation.
     * @param {Object} data.fsentry - The file system entry that is pending.
     * @param {Object} data.context - The operation context providing additional metadata.
     * @fires svc_event#outer.gui.item.pending - Emitted with user ID list and entry details.
-    * 
+    *
     * @returns {Promise<void>} Emits an event to update the GUI about the pending item.
     */
-    async _on_fs_pending (key, data) {
+    async _on_fs_pending(key, data) {
         const { fsentry, context } = data;
 
         const metadata = {
@@ -225,16 +229,16 @@ class WSPushService  extends BaseService {
 
     /**
     * Emits an upload or download progress event to the relevant socket.
-    * 
+    *
     * @param {string} key - The event key that triggered this method.
     * @param {Object} data - Contains upload_tracker, context, and meta information.
     * @param {Object} data.upload_tracker - Tracker for the upload/download progress.
     * @param {Object} data.context - Context of the operation.
     * @param {Object} data.meta - Additional metadata for the event.
-    * 
+    *
     * It emits a progress event to the socket if it exists, otherwise, it does nothing.
     */
-    async _on_upload_progress (key, data) {
+    async _on_upload_progress(key, data) {
         this.log.info('got upload progress event');
         const { upload_tracker, context, meta } = data;
 
@@ -257,7 +261,7 @@ class WSPushService  extends BaseService {
         }
 
         this.log.info('socket id: ' + socket_id);
-        
+
         const svc_socketio = context.get('services').get('socketio');
         if ( ! svc_socketio.has({ socket: socket_id }) ) {
             return;
@@ -274,10 +278,10 @@ class WSPushService  extends BaseService {
                 loaded: upload_tracker.progress_,
                 loaded_diff: delta,
             });
-        })
+        });
     }
 
-    async _on_submission_done (key, data) {
+    async _on_submission_done(key, data) {
         const { actor } = data;
         const { id, output, summary, measures, aux_outputs } = data;
         const user_id = actor.type.user.id;
@@ -298,16 +302,16 @@ class WSPushService  extends BaseService {
 
     /**
     * Handles the 'outer.gui.*' event to emit GUI-related updates to specific users.
-    * 
+    *
     * @param {string} key - The event key with 'outer.gui.' prefix removed.
     * @param {Object} data - Contains user_id_list and response to emit.
     * @param {Object} meta - Additional metadata for the event.
-    * 
+    *
     * @note This method iterates over each user ID provided in the event data,
     *       checks if the user's socket room exists and has clients, then emits
     *       the event to the appropriate room.
     */
-    async _on_outer_gui (key, { user_id_list, response }, meta) {
+    async _on_outer_gui(key, { user_id_list, response }, meta) {
         key = key.slice('outer.gui.'.length);
 
         const svc_socketio = this.services.get('socketio');
@@ -327,5 +331,5 @@ class WSPushService  extends BaseService {
 }
 
 module.exports = {
-    WSPushService
+    WSPushService,
 };

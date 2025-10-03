@@ -21,7 +21,6 @@ const StringParam = require("../../api/filesystem/StringParam");
 const { HLFilesystemOperation } = require("./definitions");
 const APIError = require("../../api/APIError");
 const { TYPE_DIRECTORY } = require("../FSNodeContext");
-const { sendFsNew } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
 
 class HLMkLink extends HLFilesystemOperation {
     static PARAMETERS = {
@@ -71,9 +70,6 @@ class HLMkLink extends HLFilesystemOperation {
 
         await created.awaitStableEntry();
         const response = await created.getSafeEntry();
-        
-        // emit fs update to fs_tree_manager
-        sendFsNew(response);
         
         return response;
     }

@@ -33,7 +33,6 @@ const { HLFilesystemOperation } = require("./definitions");
 const { MkTree } = require("./hl_mkdir");
 const { Actor } = require("../../services/auth/Actor");
 const { LLCWrite, LLOWrite } = require("../ll_operations/ll_write");
-const { sendFsNew } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
 
 class WriteCommonFeature {
     install_in_instance (instance) {
@@ -425,8 +424,6 @@ class HLWrite extends HLFilesystemOperation {
         const response = await this.written.getSafeEntry({ thumbnail: true });
         this.checkpoint('after get safe entry');
 
-        // emit fs update to fs_tree_manager
-        sendFsNew(response);
 
         return response;
     }

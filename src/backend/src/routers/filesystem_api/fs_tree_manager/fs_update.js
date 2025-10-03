@@ -22,15 +22,15 @@ const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.creat
 
 /**
  * Sends a new filesystem entry to the gRPC service
- * @param {string} userName - The user name for the request
+ * @param {number} userId - The user ID for the request
  * @param {Object} metadata - The metadata for the FSEntry
  * @returns {Promise<void>} - Resolves when the entry is sent successfully
  * @throws {Error} - If the gRPC call fails
  */
-async function sendFsNew(userName, metadata) {
+async function sendFsNew(userId, metadata) {
     return new Promise((resolve, reject) => {
-        if ( !userName ) {
-            reject(new Error('User name is required'));
+        if ( !userId ) {
+            reject(new Error('User ID is required'));
             return;
         }
         if ( !metadata ) {
@@ -40,14 +40,15 @@ async function sendFsNew(userName, metadata) {
 
         const fsEntry = buildFsEntry(metadata);
         const request = new NewFSEntryRequest();
-        request.setUserName(userName);
+        request.setUserId(userId);
         request.setFsEntry(fsEntry);
 
         client.newFSEntry(request, (err, _response) => {
             if ( err ) {
-                reject(new Error(`Failed to send fs new entry: ${err.message}`));
+                reject(new Error(`[xiaochen-error] Failed to send fs new entry: ${err.message}`));
                 return;
             }
+            console.log(`[xiaochen-log] sendFsNew: ${userId}, ${metadata.path}`);
             resolve();
         });
     });
@@ -55,15 +56,15 @@ async function sendFsNew(userName, metadata) {
 
 /**
  * Sends a remove filesystem entry to the gRPC service
- * @param {string} userName - The user name for the request
+ * @param {number} userId - The user ID for the request
  * @param {string} uuid - The UUID of the FSEntry to remove
  * @returns {Promise<void>} - Resolves when the entry is sent successfully
  * @throws {Error} - If the gRPC call fails
  */
-async function sendFsRemove(userName, uuid) {
+async function sendFsRemove(userId, uuid) {
     return new Promise((resolve, reject) => {
-        if ( !userName ) {
-            reject(new Error('User name is required'));
+        if ( !userId ) {
+            reject(new Error('User ID is required'));
             return;
         }
         if ( !uuid ) {
@@ -72,14 +73,15 @@ async function sendFsRemove(userName, uuid) {
         }
 
         const request = new RemoveFSEntryRequest();
-        request.setUserName(userName);
+        request.setUserId(userId);
         request.setUuid(uuid);
 
         client.removeFSEntry(request, (err, _response) => {
             if ( err ) {
-                reject(new Error(`Failed to send fs remove entry: ${err.message}`));
+                reject(new Error(`[xiaochen-error] Failed to send fs remove entry: ${err.message}`));
                 return;
             }
+            console.log(`[xiaochen-log] sendFsRemove: ${userId}, ${uuid}`);
             resolve();
         });
     });

@@ -46,9 +46,14 @@ const mkdir = function (...args) {
                 originalSuccess(...args);
             }
 
+            if (args.length !== 1) {
+                console.error('mkdir: expected 1 argument, got', args);
+                return;
+            }
+
             const fs_entry = args[0];
             if (puter.fs.replica.available) {
-                window.FSTree.newDirectory(fs_entry);
+                puter.fs.replica.FSTree.newFSEntry(fs_entry);
             }
         };
 

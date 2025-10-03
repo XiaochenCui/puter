@@ -218,9 +218,6 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 		return nil, err
 	}
 	defer lockedTree.lock.RUnlock()
-
-	log.Printf("[user %d] fetched replica", req.UserId)
-
 	return lockedTree.tree, nil
 }
 
@@ -235,32 +232,42 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 		return nil, fmt.Errorf("invalid metadata: missing uid")
 	}
 
-	parentUID, ok := metadataMap["parent_uid"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid metadata: missing parent_uid")
-	}
-
 	lockedTree, err := getMerkleTreeForWrite(s, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer lockedTree.lock.Unlock()
 
+	parentUUID, err := getParentUUID(metadataMap, lockedTree.tree.Nodes)
+	if err != nil {
+		return nil, err
+	}
+
 	tree := lockedTree.tree
-	parentNode, exists := tree.Nodes[parentUID]
+	parentNode, exists := tree.Nodes[parentUUID]
 	if !exists {
-		return nil, fmt.Errorf("parent directory not found: %s", parentUID)
+		return nil, fmt.Errorf("parent directory not found: %s", parentUUID)
 	}
 
 	newNode := &pb.MerkleNode{
 		Uuid:          uid,
 		MerkleHash:    "",
-		ParentUuid:    parentUID,
+		ParentUuid:    parentUUID,
 		FsEntry:       fsEntry,
 		ChildrenUuids: []string{},
 	}
 
 	tree.Nodes[uid] = newNode
+
+	{
+		parentMetadata := parentNode.FsEntry.Metadata.AsMap()
+		parentPath := parentMetadata["path"].(string)
+		parentUUID, err := getUUID(parentMetadata)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("[user %d] adding fs entry: %s to parent (path: %s, uuid: %s)", userID, uid, parentPath, parentUUID)
+	}
 
 	parentNode.ChildrenUuids = append(parentNode.ChildrenUuids, uid)
 
@@ -268,7 +275,69 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 
 	recalculateAncestorHashes(tree, uid)
 
+	log.Printf("[user %d] new fs entry: %s", userID, metadataMap["path"])
+
 	return &emptypb.Empty{}, nil
+}
+
+// getUUID tries to get the UUID from uuid/id field.
+func getUUID(metadata map[string]any) (UUID string, err error) {
+	v, ok := metadata["uuid"]
+	if ok {
+		if _, ok := v.(string); !ok {
+			return "", fmt.Errorf("uuid is not a string")
+		}
+		return v.(string), nil
+	}
+	v, ok = metadata["id"]
+	if ok {
+		if _, ok := v.(string); !ok {
+			return "", fmt.Errorf("uuid is not a string")
+		}
+		return v.(string), nil
+	}
+	return "", fmt.Errorf("uuid not found")
+}
+
+func getParentUUID(metadata map[string]any, nodes map[string]*pb.MerkleNode) (UUID string, err error) {
+	// Check the inconsistency between "parent_path" and "parent_uuid", the inconsistency
+	// occurs in several scenarios:
+	// - When moving a directory from ~/Desktop to ~/trash, the parent_uuid is not updated.
+
+	// parent_path comes from "dirpath" field
+	parentPath := metadata["dirpath"].(string)
+
+	// parent_uuid comes from "parent_uid"/"parent_id" field, just use parent_uid here.
+	parentUUID := metadata["parent_uid"].(string)
+
+	if parentUUID == "" {
+		return "", fmt.Errorf("parent_uuid is empty")
+	}
+
+	parentNode, parentExists := nodes[parentUUID]
+	if !parentExists {
+		return "", fmt.Errorf("parent node not found, uuid: %s", parentUUID)
+	}
+
+	pathFromUUID := parentNode.FsEntry.Metadata.AsMap()["path"].(string)
+	if parentPath != pathFromUUID {
+		// When missmatch happens, use parentPath.
+		log.Printf("parent_path(preferred) and parent_uuid mismatch, parent_path: %s, pathFromUUID: %s, uuid: %s", parentPath, pathFromUUID, parentUUID)
+		return pathToUUID(parentPath, nodes)
+	}
+
+	return parentUUID, nil
+}
+
+func pathToUUID(path string, nodes map[string]*pb.MerkleNode) (UUID string, err error) {
+	// TODO: optimize this by using a trie tree. Currently we cannot traverse the tree
+	// using path.
+	for _, node := range nodes {
+		if node.FsEntry.Metadata.AsMap()["path"].(string) == path {
+			return node.Uuid, nil
+		}
+	}
+	return "", fmt.Errorf("node not found, path: %s", path)
 }
 
 // RemoveFSEntry implements the FSTreeManager service
@@ -294,6 +363,14 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 	// Remove the node from its parent's children list
 	if targetNode.ParentUuid != "" {
 		if parentNode, parentExists := tree.Nodes[targetNode.ParentUuid]; parentExists {
+			path := targetNode.FsEntry.Metadata.AsMap()["path"].(string)
+			parentMetadata := parentNode.FsEntry.Metadata.AsMap()
+			parentPath := parentMetadata["path"].(string)
+			parentUUID, err := getUUID(parentMetadata)
+			if err != nil {
+				return nil, err
+			}
+			log.Printf("[user %d] removing fs entry: %s from parent (path: %s, uuid: %s)", userID, path, parentPath, parentUUID)
 			for i, childUUID := range parentNode.ChildrenUuids {
 				if childUUID == uid {
 					parentNode.ChildrenUuids = append(parentNode.ChildrenUuids[:i], parentNode.ChildrenUuids[i+1:]...)
@@ -311,12 +388,11 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		recalculateAncestorHashes(tree, targetNode.ParentUuid)
 	}
 
-	log.Printf("[user %d] removed fs entry: %s", userID, uid)
+	log.Printf("[user %d] removed fs entry: %s", userID, targetNode.FsEntry.Metadata.AsMap()["path"])
 
 	return &emptypb.Empty{}, nil
 }
 
-// PullDiff implements the FSTreeManager service
 func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
 	lockedTree, err := getMerkleTree(s, req.UserId)
 	if err != nil {
@@ -337,15 +413,12 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 			continue
 		}
 
-		// If hashes match, no need to send this node
+		// If hashes match, no need to send this node.
 		if node.MerkleHash == pullRequestItem.MerkleHash {
-			log.Printf("[user %d] node %s merkle hash matches: %s", req.UserId, pullRequestItem.Uuid, node.MerkleHash)
 			continue
 		}
 
-		log.Printf("[user %d] node %s merkle hash mismatch: %s != %s", req.UserId, pullRequestItem.Uuid, node.MerkleHash, pullRequestItem.MerkleHash)
-
-		// Create push request item with node and its children
+		// Create push request item with node and its children.
 		pushItem := &pb.PushRequestItem{
 			Uuid:       node.Uuid,
 			MerkleHash: node.MerkleHash,
@@ -353,7 +426,7 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 			Children:   []*pb.PushRequestItem{},
 		}
 
-		// Add all children
+		// Add all children.
 		for _, childUUID := range node.ChildrenUuids {
 			if childNode, childExists := tree.Nodes[childUUID]; childExists {
 				childPushItem := &pb.PushRequestItem{
@@ -367,15 +440,12 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 		}
 
 		response.PushRequest = append(response.PushRequest, pushItem)
-		log.Printf("[user %d] push request: %s, %d children", req.UserId, pushItem.Uuid, len(pushItem.Children))
 	}
 
 	return response, nil
 }
 
-// PurgeReplica implements the FSTreeManager service
 func (s *server) PurgeReplica(ctx context.Context, req *pb.PurgeReplicaRequest) (*emptypb.Empty, error) {
-	// Write lock for deleting from the trees map
 	treesLock.Lock()
 	delete(trees, req.UserId)
 	treesLock.Unlock()
@@ -582,6 +652,8 @@ func integrityCheck(tree *pb.MerkleTree, rootPath string, userID int64) {
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 	// Initialize global trees map
 	trees = make(map[int64]*LockedMerkleTree)
 

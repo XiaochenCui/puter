@@ -36,12 +36,6 @@ class FSTree {
         } else {
             this.root = '/';
         }
-
-        // print the root path and hash
-        console.log(`root path: ${this.root}, root hash: ${rootNode.merkle_hash}`);
-
-        // print the root node
-        console.log(`root node: ${JSON.stringify(rootNode)}`);
     }
 
     /**
@@ -167,6 +161,7 @@ class FSTree {
             node = this.findNodeByUUID(uid);
         } else if ( path ) {
             node = this.findNodeByPath(path);
+            console.log(`readdir: found node: ${node.fs_entry.path} (uuid: ${node.uuid}), children: ${node.children_uuids}`);
         } else {
             throw new Error('Either path or uid must be provided');
         }
@@ -214,13 +209,9 @@ class FSTree {
      * Add a new directory to the tree
      * @param {Object} fs_entry - The fs_entry object of the new directory
      */
-    async newDirectory(fs_entry) {
+    async newFSEntry(fs_entry) {
         if ( !fs_entry || !fs_entry.uid ) {
             throw new Error('Invalid fs_entry: must have uid');
-        }
-
-        if ( !fs_entry.is_dir ) {
-            throw new Error('fs_entry must be a directory');
         }
 
         // Find the parent directory by uid

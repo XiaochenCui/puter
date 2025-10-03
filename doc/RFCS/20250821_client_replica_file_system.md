@@ -35,7 +35,6 @@ In our implementation, we use two key ideas:
 
    * **Top-down traversal**: used for tree comparison and path lookup.
    * **Bottom-up traversal**: used to recalculate hashes when a node is updated.
-
 2. **Heap (Index by UUID)**
    We maintain a heap-like structure (UUID → node map) to:
 
@@ -106,12 +105,13 @@ Server send push requests when there are differences between the client and serv
 ```
 
 Client does the following actions in sequence:
+
 1. Update the fs_entry for the level-1 node.
 2. Compare the children list with the client-replica.
-  2.a For nodes with the same uuid and hash, skip.
-  2.b For nodes with the same uuid and different hash, update the fs_entry for the node. Then add the node to the next pull request (as level-1 node).
-  2.c For nodes that missing from the server response, remove it and all its ancestors from the local replica.
-  2.d For nodes that missing from the client-replica, add it the local replica. Then add the node to the next pull request (as level-1 node).
+   2.a For nodes with the same uuid and hash, skip.
+   2.b For nodes with the same uuid and different hash, update the fs_entry for the node. Then add the node to the next pull request (as level-1 node).
+   2.c For nodes that missing from the server response, remove it and all its ancestors from the local replica.
+   2.d For nodes that missing from the client-replica, add it the local replica. Then add the node to the next pull request (as level-1 node).
 3. Send the next pull request to the server if there are any nodes to update.
 4. Stop when 1) there are no nodes to update or 2) the server response is empty.
 
@@ -143,6 +143,48 @@ Just a standalone service that manages the FS-Tree.
 
 TODO: Add more details.
 
+### Adaptation to the Existing Codebase
+
+#### FSEntry Parent
+
+As of now, there are 4 attributes in a fsentry that are related to parent:
+
+- `parent_id`
+- `parent_uid`
+- `dirname`
+- `dirpath`
+
+`parent_id`/`parent_uid` is defined as database columns ([link](https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L82-L83)) and there are some subtle differences:
+
+- `parent_id` may be an int id or a string uuid.
+- `parent_uid` is string uuid most of the time.
+
+`dirname`/`dirpath` is calculated in the process of business logic ([link](https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/filesystem/FSNodeContext.js#L829-L830)) and often returned to the client.
+
+- `dirname` may be the last part of `path` or the whole `path`.
+- `dirpath` is always the whole `path`.
+
+`parent_id`/`parent_uid`/`dirname`/`dirpath` are consitent with each other most of the time, but may out of sync in some cases (e.g: move operation). The receivers (i.e: puter-js, fs-tree-manager) may validate the consistency of these attributes but **MUST** throw an error if they are inconsistent. Other approaches such as silent fail or fallback to one of them are **PROHIBITED** since the inconsistency will propagate during sync process and hard to diagnose.
+
+The fix of inconsistency should be done inside the puter backend and marked as `client-replica patch`.
+
+FSEntry receivers should rely on `parent_uid` field.
+
+#### FSEntry ID/UID/UUID/MYSQL_ID
+
+TODO
+
+- uuid may missing from it
+- id may be a string uuid
+- uid is often seen in fsentry, it's a string uuid most of the time
+
+#### User ID/UUID
+
+TODO
+
+- id is a int id most of the time
+- id is more accessible than uuid (TODO: explain why)
+
 ## Scalability
 
 ### First Stage - Single Instance
@@ -164,7 +206,7 @@ TODO: We may need a GUI control panel for partition management.
 
 ## Fault Tolerance
 
-TODO: 
+TODO:
 
 scenario 1: FS-Tree Manager is unavailable on all APIs.
 

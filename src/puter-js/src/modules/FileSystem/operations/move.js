@@ -53,8 +53,18 @@ const move = function (...args) {
         // create xhr object
         const xhr = utils.initXhr('/move', this.APIOrigin, this.authToken);
 
+        // inject the client-replica update hook to the success callback
+        const originalSuccess = options.success;
+        const wrappedSuccess = (...args) => {
+            if (originalSuccess) {
+                originalSuccess(...args);
+            }
+
+            console.log('move: success', args);
+        };
+
         // set up event handlers for load and error events
-        utils.setupXhrEventHandlers(xhr, options.success, options.error, resolve, reject);
+        utils.setupXhrEventHandlers(xhr, wrappedSuccess, options.error, resolve, reject);
 
         xhr.send(JSON.stringify({
             source: options.source,
