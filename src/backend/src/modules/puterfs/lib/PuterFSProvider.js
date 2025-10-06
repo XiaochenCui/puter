@@ -221,7 +221,6 @@ class PuterFSProvider extends putility.AdvancedBase {
 
         const svc_fsEntry = services.get('fsEntryService');
 
-        // ================================================================
         // ================== client-replica patch start ==================
         // patch: the parent_uid should be updated after move operation
         {
@@ -229,7 +228,6 @@ class PuterFSProvider extends putility.AdvancedBase {
             node.entry.parent_uid = new_parent_uid;
         }
         // ================== client-replica patch end ====================
-        // ================================================================
 
         const op_update = await svc_fsEntry.update(node.uid, {
             ...(

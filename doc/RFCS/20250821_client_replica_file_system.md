@@ -2,6 +2,32 @@
 - Status: Draft
 - Date: 2025-08-21
 
+## Table of Contents
+
+- [Summary](#summary)
+- [Motivation](#motivation)
+- [Implementation](#implementation)
+  - [Data Structure](#data-structure)
+  - [Client-Replica Initialization](#client-replica-initialization)
+  - [Client-Replica Synchronization](#client-replica-synchronization)
+  - [File System Operations Upon Fetching](#file-system-operations-upon-fetching)
+  - [FS-Tree Manager](#fs-tree-manager)
+  - [FS Hooks](#fs-hooks)
+  - [Adaptation to the Existing Codebase](#adaptation-to-the-existing-codebase)
+- [Scalability](#scalability)
+  - [First Stage - Single Instance](#first-stage---single-instance)
+  - [Second Stage - Partitioned FS-Tree Manager](#second-stage---partitioned-fs-tree-manager)
+- [Fault Tolerance](#fault-tolerance)
+- [Metrics](#metrics)
+  - [Change Propagation Time](#change-propagation-time)
+- [Optimization in the Future](#optimization-in-the-future)
+- [Failure Scenarios](#failure-scenarios)
+  - [FS-Tree Manager Failure](#fs-tree-manager-failure)
+  - [FS-Update Notification Failure](#fs-update-notification-failure)
+- [Alternatives and Trade-offs](#alternatives-and-trade-offs)
+  - [Last-Updated Time for "Stale Replica Fetch"](#last-updated-time-for-stale-replica-fetch)
+  - [Alternative Storage Models](#alternative-storage-models)
+
 ## Summary
 
 **Client Replica Filesystem** is a mechanism that keeps a **full replica** of a user’s filesystem tree on the client and regularly sync updates from the server. This feature allows:
@@ -20,7 +46,7 @@ Currently, all of these operations are handled through the synchronous HTTP API 
 
 To tackle this issue, we propose maintaining a **full replica** of the filesystem rooted at the user’s home directory on the client (e.g., for user Tim, all filesystem nodes under `/Tim` are stored locally). This allows users to perform read-only operations on the client replica without waiting for a server response. Updates to the filesystem will be fetched from the server periodically.
 
-![](assets/20250910_113939_puter-client_replica.drawio.svg)
+![](assets/20251006_105144_puter-client_replica.drawio.svg)
 
 ## Implementation
 
@@ -143,6 +169,14 @@ Just a standalone service that manages the FS-Tree.
 
 TODO: Add more details.
 
+### FS Hooks
+
+#### Hooks in Puter Backend
+
+- [X] move (`fs.move.*` event) (code: `src/backend/src/services/WSPushService.js`)
+- [X] new file/dir (`fs.create.*` event) (code: `src/backend/src/services/WSPushService.js`)
+- [ ] delete file/dir
+
 ### Adaptation to the Existing Codebase
 
 #### FSEntry Parent
@@ -184,6 +218,66 @@ TODO
 
 - id is a int id most of the time
 - id is more accessible than uuid (TODO: explain why)
+
+#### Heterogeneous FSEntry
+
+FS-Tree Manager accepts FSEntry from 2 different sources:
+
+- database, fields: [link](https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L70)
+- puter backend, which does some post-processing in `getSafeEntry` ([link](https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/filesystem/FSNodeContext.js#L771)), including but not limited to:
+
+  - add dirname, dirpath
+  - add id, uid, remove uuid
+  - remove user_id
+  - remove bucket, bucket_region
+  - bool/int is_dir -> boolean
+  - int/other size -> int
+
+These differences poses 3 challenges for FS-Tree Manager:
+
+1. It fetches the tree from database then push it to the client without post-processing, which leads to inconsistent FSEntry from puter-js' point of view.
+2. It has to maintain FSEntry in 2 different formats, which is error-prone.
+3. There is a high chance of inconsistency between the in-memory FS Tree and the database.
+
+To cope with these challenges, we propose the following workarounds:
+
+- Just return the raw FSEntry to the client for now. Adapt to the post-processing format in the future.
+- Store both formats in the FS-Tree Manager for now. Add a normalizer in the input procedure in the future.
+- Drop the in-memory FS Tree directly during “anti-entropy sync.”
+
+### Anomaly - Stale Fetch Due to Local Update
+
+A stale fetch can happens immediately after a local update:
+
+1. At time `t`, a FS updated happens and local-replica is updated.
+2. At time `t + 1`, a sync happens, the client fetches the stale replica from server.
+3. At time `t + 2`, the FS update event reaches the FS-Tree Manager and the in-memory FS Tree is updated.
+
+The nature of this anomaly is that FS update has to be reflected to the client-replica as soon as possible so the read APIs can see the update, while there might be a delay between the FS update and the FS-Tree Manager's update.
+
+The naive solution is to stop periodic syncs for 3 seconds after any local update.
+
+A better solution is introduce `last_updated_time` to all replicas but it introduces other pitfalls like clock skew and extra complexity.
+
+TOOD: add a diagram so it's easier to understand.
+
+### Anomaly - Stale Fetch Due to Failed Event Notification
+
+TODO
+
+### Puter-JS Variables
+
+- `puter.fs.replica.available` - whether the client-replica is available
+- `puter.fs.replica.last_local_update` - the timestamp of the last local update
+- `puter.fs.replica.debug` - toggle debug widget and logs, may be merged with `puter.debugMode` in the future
+- `puter.fs.replica.fs_tree` - the in-memory FS Tree, should only be used by internal code
+
+### Code Location
+
+- `src/puter-js/src/modules/FileSystem/replica` - puter-js client
+- `src/backend/src/routers/filesystem_api/fs_tree_manager` - puter backend
+- `src/fs_tree_manager` - fs-tree-manager service, including golang server and protobuf definitions
+- `doc/RFCS/20250821_client_replica_file_system.md` - this document, currently include all infromation about the client-replica file system
 
 ## Scalability
 

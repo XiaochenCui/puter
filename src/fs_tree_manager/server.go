@@ -21,67 +21,61 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// LockedMerkleTree wraps a MerkleTree with its own lock
-type LockedMerkleTree struct {
-	tree *pb.MerkleTree
-	lock sync.RWMutex
-}
+type (
+	lockedMerkleTree struct {
+		tree *pb.MerkleTree
+		lock sync.RWMutex
+	}
 
-// Global variables for trees management
-var (
-	trees     map[int64]*LockedMerkleTree // In-memory tree cache by user_id
-	treesLock sync.RWMutex                // Protects access to the trees map
+	server struct {
+		pb.UnimplementedFSTreeManagerServer
+		db *sql.DB
+	}
 )
 
-type server struct {
-	pb.UnimplementedFSTreeManagerServer
-	db *sql.DB
-}
+var (
+	// In-memory tree cache by user_id.
+	trees map[int64]*lockedMerkleTree
+
+	// The global lock.
+	treesLock sync.RWMutex
+
+	// Make FS-Tree Manager unstable and laggy.
+	debug = true
+)
 
 // getMerkleTree atomically gets or creates a MerkleTree for a user
 // Returns a read-locked tree that must be unlocked by the caller
-func getMerkleTree(s *server, userID int64) (*LockedMerkleTree, error) {
-	// First check if tree exists in cache (read lock)
+func getMerkleTree(s *server, userID int64) (*lockedMerkleTree, error) {
 	treesLock.RLock()
 	lockedTree, exists := trees[userID]
 	treesLock.RUnlock()
 
 	if exists {
-		// Tree exists, acquire read lock and return
 		lockedTree.lock.RLock()
 		return lockedTree, nil
 	}
 
-	// Tree doesn't exist, need to create it (write lock)
 	treesLock.Lock()
 	defer treesLock.Unlock()
 
-	// Double-check after acquiring write lock
-	if lockedTree, exists := trees[userID]; exists {
-		lockedTree.lock.RLock()
-		return lockedTree, nil
-	}
-
-	// Build new tree
 	tree, err := s.buildUserFSTree(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create locked tree and store in cache
-	lockedTree = &LockedMerkleTree{
+	lockedTree = &lockedMerkleTree{
 		tree: tree,
 	}
 	trees[userID] = lockedTree
 
-	// Acquire read lock and return
 	lockedTree.lock.RLock()
 	return lockedTree, nil
 }
 
 // getMerkleTreeForWrite atomically gets or creates a MerkleTree for a user for write operations
 // Returns a write-locked tree that must be unlocked by the caller
-func getMerkleTreeForWrite(s *server, userID int64) (*LockedMerkleTree, error) {
+func getMerkleTreeForWrite(s *server, userID int64) (*lockedMerkleTree, error) {
 	// First check if tree exists in cache (read lock)
 	treesLock.RLock()
 	lockedTree, exists := trees[userID]
@@ -110,7 +104,7 @@ func getMerkleTreeForWrite(s *server, userID int64) (*LockedMerkleTree, error) {
 	}
 
 	// Create locked tree and store in cache
-	lockedTree = &LockedMerkleTree{
+	lockedTree = &lockedMerkleTree{
 		tree: tree,
 	}
 	trees[userID] = lockedTree
@@ -213,6 +207,10 @@ func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
 
 // FetchReplica implements the FSTreeManager service
 func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) (*pb.MerkleTree, error) {
+	if debug {
+		time.Sleep(10 * time.Second)
+	}
+
 	lockedTree, err := getMerkleTree(s, req.UserId)
 	if err != nil {
 		return nil, err
@@ -655,7 +653,7 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	// Initialize global trees map
-	trees = make(map[int64]*LockedMerkleTree)
+	trees = make(map[int64]*lockedMerkleTree)
 
 	db, err := sql.Open("sqlite3", sqliteDBPath)
 	if err != nil {

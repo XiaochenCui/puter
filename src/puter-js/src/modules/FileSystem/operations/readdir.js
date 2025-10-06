@@ -17,11 +17,11 @@ const readdir = async function(...args) {
     }
 
     if ( puter.fs.replica.available ) {
-        const homePath = puter.fs.replica.FSTree.root;
+        const homePath = puter.fs.replica.fs_tree.root;
         if ( options.path && options.path.startsWith(homePath) ) {
             return new Promise(async (resolve, reject) => {
                 try {
-                    const result = await puter.fs.replica.FSTree.readdir(options);
+                    const result = await puter.fs.replica.fs_tree.readdir(options);
                     if ( options.success ) {
                         options.success(result);
                     }

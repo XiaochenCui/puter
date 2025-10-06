@@ -53,8 +53,10 @@ const mkdir = function (...args) {
 
             const fs_entry = args[0];
             if (puter.fs.replica.available) {
-                puter.fs.replica.FSTree.newFSEntry(fs_entry);
+                puter.fs.replica.fs_tree.newFSEntry(fs_entry);
+                puter.fs.replica.last_local_update = Date.now();
             }
+
         };
 
         // set up event handlers for load and error events

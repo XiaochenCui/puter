@@ -22,7 +22,7 @@ const { TYPE_DIRECTORY } = require("../FSNodeContext");
 const { LLRmDir } = require("../ll_operations/ll_rmdir");
 const { LLRmNode } = require("../ll_operations/ll_rmnode");
 const { HLFilesystemOperation } = require("./definitions");
-
+const { sendFsRemove } = require("../../routers/filesystem_api/fs_tree_manager/fs_update");
 class HLRemove extends HLFilesystemOperation {
     static PARAMETERS = {
         target: {},
@@ -44,7 +44,18 @@ class HLRemove extends HLFilesystemOperation {
 
         if ( await target.get('type') === TYPE_DIRECTORY ) {
             const ll_rmdir = new LLRmDir();
-            return await ll_rmdir.run(this.values);
+            const result = await ll_rmdir.run(this.values);
+
+            // ================== client-replica hook start ==================
+            // "remove" hook
+            {
+                const target = this.values.target;
+                const uuid = target.entry.uuid || target.entry.uid;
+                sendFsRemove(user.id, uuid);
+            }
+            // ================== client-replica hook end ====================
+
+            return result;
         }
 
         const ll_rmnode = new LLRmNode();

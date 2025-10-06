@@ -71,8 +71,13 @@ module.exports = {
                     });
                 }
 
-                // Convert protobuf response to plain JavaScript
                 const pushRequestItems = resp.getPushRequestList();
+
+                if ( pushRequestItems.length === 0 ) {
+                    return;
+                }
+
+                // Convert protobuf response to plain JavaScript
                 const pushRequest = {
                     push_request: pushRequestItems.map(item => ({
                         uuid: item.getUuid(),
@@ -86,12 +91,6 @@ module.exports = {
                         })),
                     })),
                 };
-
-                if ( pushRequest.push_request.length > 0 ) {
-                    console.log('push request:', pushRequest);
-                } else {
-                    console.log('push request: no push request');
-                }
 
                 socket.emit('replica/pull_diff/success', {
                     success: true,

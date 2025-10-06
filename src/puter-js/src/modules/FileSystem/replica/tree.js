@@ -62,9 +62,7 @@ class FSTree {
         }
 
         const hash = hasher.digest();
-        const hashString = hash.toString();
-        console.log(`node ${node.fs_entry.path} hash: ${hashString}`);
-        return hashString;
+        return hash.toString();
     }
 
     /**
@@ -161,7 +159,6 @@ class FSTree {
             node = this.findNodeByUUID(uid);
         } else if ( path ) {
             node = this.findNodeByPath(path);
-            console.log(`readdir: found node: ${node.fs_entry.path} (uuid: ${node.uuid}), children: ${node.children_uuids}`);
         } else {
             throw new Error('Either path or uid must be provided');
         }
@@ -236,9 +233,6 @@ class FSTree {
         parentNode.children_uuids.push(fs_entry.uid);
 
         await this.recalculateAncestorHashes(fs_entry.uid);
-
-        const rootNode = this.nodes[this.rootId];
-        console.log('Root hash:', rootNode?.merkle_hash);
     }
 }
 
