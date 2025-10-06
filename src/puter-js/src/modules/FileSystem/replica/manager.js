@@ -23,7 +23,6 @@ import FSTree from './tree.js';
 class ReplicaManager {
     constructor() {
         this.socket = null;
-        this.isConnected = false;
         this.isInitialized = false;
         this.username = null;
         this.pullDiffInterval = null;
@@ -76,9 +75,6 @@ class ReplicaManager {
         }
     }
 
-    /**
-     * Connect to the websocket
-     */
     connect() {
         if ( this.socket ) {
             this.socket.disconnect();
@@ -98,11 +94,6 @@ class ReplicaManager {
      */
     bindEvents() {
         this.socket.on('connect', () => {
-            this.isConnected = true;
-            if ( puter.debugMode ) {
-                console.log('Replica Manager: Connected', this.socket.id);
-            }
-
             // init
             this.fetchUserRoot();
 
@@ -111,18 +102,10 @@ class ReplicaManager {
         });
 
         this.socket.on('disconnect', () => {
-            this.isConnected = false;
-            if ( puter.debugMode ) {
-                console.log('Replica Manager: Disconnected');
-            }
+            this.cleanup('disconnected');
         });
 
         this.socket.on('reconnect', (_attempt) => {
-            this.isConnected = true;
-            if ( puter.debugMode ) {
-                console.log('Replica Manager: Reconnected', this.socket.id);
-            }
-
             // Refetch user's root path on reconnection
             this.fetchUserRoot();
 
@@ -131,27 +114,15 @@ class ReplicaManager {
         });
 
         this.socket.on('reconnect_attempt', (_attempt) => {
-            if ( puter.debugMode ) {
-                console.log('Replica Manager: Reconnection Attempt', _attempt);
-            }
         });
 
         this.socket.on('reconnect_error', (error) => {
-            if ( puter.debugMode ) {
-                console.log('Replica Manager: Reconnection Error', error);
-            }
         });
 
         this.socket.on('reconnect_failed', () => {
-            if ( puter.debugMode ) {
-                console.log('Replica Manager: Reconnection Failed');
-            }
         });
 
         this.socket.on('error', (error) => {
-            if ( puter.debugMode ) {
-                console.error('Replica Manager Error:', error);
-            }
         });
 
         this.socket.on('replica/fetch/success', (data) => {
@@ -346,20 +317,6 @@ class ReplicaManager {
 
         // Remove the node itself
         delete this.fs_tree.nodes[nodeId];
-    }
-
-    /**
-     * Get the current socket instance
-     */
-    getSocket() {
-        return this.socket;
-    }
-
-    /**
-     * Check if connected
-     */
-    isSocketConnected() {
-        return this.isConnected && this.socket && !this.socket.disconnected;
     }
 
     startPullDiff() {
