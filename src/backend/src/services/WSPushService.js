@@ -75,9 +75,12 @@ class WSPushService  extends BaseService {
             response,
         });
 
+        // ================== client-replica hook start ==================
+        // "create" hook
         for ( const user_id of user_id_list ) {
             await sendFsNew(user_id, response);
         }
+        // ================== client-replica hook end ====================
     }
 
     /**
@@ -176,12 +179,16 @@ class WSPushService  extends BaseService {
             response,
         });
 
+        // ================== client-replica hook start ==================
+        // "move" hook
+        //
         // NB: UUID comes from uuid/uid, need to handle both.
         const uuid = response.uuid || response.uid;
         for ( const user_id of user_id_list ) {
             await sendFsRemove(user_id, uuid);
             await sendFsNew(user_id, response);
         }
+        // ================== client-replica hook end ====================
     }
 
     /**

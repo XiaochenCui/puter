@@ -173,9 +173,10 @@ TODO: Add more details.
 
 #### Hooks in Puter Backend
 
+- [X] create file/dir (`fs.create.*` event) (code: `src/backend/src/services/WSPushService.js`)
 - [X] move (`fs.move.*` event) (code: `src/backend/src/services/WSPushService.js`)
-- [X] new file/dir (`fs.create.*` event) (code: `src/backend/src/services/WSPushService.js`)
-- [ ] delete file/dir
+- [X] delete file/dir (code: `src/backend/src/filesystem/hl_operations/hl_remove.js`)
+- [X] rename (code: `src/backend/src/routers/filesystem_api/rename.js`)
 
 ### Adaptation to the Existing Codebase
 
@@ -262,6 +263,10 @@ A better solution is introduce `last_updated_time` to all replicas but it introd
 TOOD: add a diagram so it's easier to understand.
 
 ### Anomaly - Stale Fetch Due to Failed Event Notification
+
+TODO
+
+### Anomaly - Overlapping FS Syncs
 
 TODO
 

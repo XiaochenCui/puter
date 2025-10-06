@@ -23,8 +23,9 @@ import (
 
 type (
 	lockedMerkleTree struct {
-		tree *pb.MerkleTree
-		lock sync.RWMutex
+		tree       *pb.MerkleTree
+		lock       sync.RWMutex
+		lastSynced time.Time
 	}
 
 	server struct {
@@ -53,6 +54,7 @@ func getMerkleTree(s *server, userID int64) (*lockedMerkleTree, error) {
 
 	if exists {
 		lockedTree.lock.RLock()
+		lockedTree.lastSynced = time.Now()
 		return lockedTree, nil
 	}
 
@@ -65,7 +67,8 @@ func getMerkleTree(s *server, userID int64) (*lockedMerkleTree, error) {
 	}
 
 	lockedTree = &lockedMerkleTree{
-		tree: tree,
+		tree:       tree,
+		lastSynced: time.Now(),
 	}
 	trees[userID] = lockedTree
 
@@ -84,6 +87,7 @@ func getMerkleTreeForWrite(s *server, userID int64) (*lockedMerkleTree, error) {
 	if exists {
 		// Tree exists, acquire write lock and return
 		lockedTree.lock.Lock()
+		lockedTree.lastSynced = time.Now()
 		return lockedTree, nil
 	}
 
@@ -105,7 +109,8 @@ func getMerkleTreeForWrite(s *server, userID int64) (*lockedMerkleTree, error) {
 
 	// Create locked tree and store in cache
 	lockedTree = &lockedMerkleTree{
-		tree: tree,
+		tree:       tree,
+		lastSynced: time.Now(),
 	}
 	trees[userID] = lockedTree
 
@@ -649,11 +654,40 @@ func integrityCheck(tree *pb.MerkleTree, rootPath string, userID int64) {
 	}
 }
 
+// purgeOldTrees removes trees that haven't been synced in 5 minutes
+func purgeOldTrees() {
+	treesLock.Lock()
+	defer treesLock.Unlock()
+
+	cutoff := time.Now().Add(-5 * time.Minute)
+	var toDelete []int64
+
+	for userID, lockedTree := range trees {
+		if lockedTree.lastSynced.Before(cutoff) {
+			toDelete = append(toDelete, userID)
+		}
+	}
+
+	for _, userID := range toDelete {
+		delete(trees, userID)
+		log.Printf("Purged old tree for user %d", userID)
+	}
+}
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	// Initialize global trees map
 	trees = make(map[int64]*lockedMerkleTree)
+
+	// Start cron job to purge old trees every 5 minutes
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			purgeOldTrees()
+		}
+	}()
 
 	db, err := sql.Open("sqlite3", sqliteDBPath)
 	if err != nil {

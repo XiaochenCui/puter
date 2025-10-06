@@ -25,6 +25,7 @@ const (
 	FSTreeManager_NewFSEntry_FullMethodName    = "/fs_tree_manager.FSTreeManager/NewFSEntry"
 	FSTreeManager_RemoveFSEntry_FullMethodName = "/fs_tree_manager.FSTreeManager/RemoveFSEntry"
 	FSTreeManager_PurgeReplica_FullMethodName  = "/fs_tree_manager.FSTreeManager/PurgeReplica"
+	FSTreeManager_InitReplica_FullMethodName   = "/fs_tree_manager.FSTreeManager/InitReplica"
 )
 
 // FSTreeManagerClient is the client API for FSTreeManager service.
@@ -35,9 +36,9 @@ const (
 // stored separately for each user.
 //
 // We use user_id instead of user_name/user_uuid since it's more accessible:
-// - fsentry include user_id
+// - fsentry include user_id but not user_name/user_uuid
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L81)
-// - user_id is included in the fs events listener
+// - user_id is included in the fs events listener where user_name/user_uuid are not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
 type FSTreeManagerClient interface {
 	FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*MerkleTree, error)
@@ -55,6 +56,8 @@ type FSTreeManagerClient interface {
 	// For any fs operations that cannot be handled by New/Remove APIs, just purge
 	// the replica.
 	PurgeReplica(ctx context.Context, in *PurgeReplicaRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Initialize or rebuild a user's filesystem tree from the database
+	InitReplica(ctx context.Context, in *InitReplicaRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type fSTreeManagerClient struct {
@@ -115,6 +118,16 @@ func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *PurgeReplica
 	return out, nil
 }
 
+func (c *fSTreeManagerClient) InitReplica(ctx context.Context, in *InitReplicaRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, FSTreeManager_InitReplica_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FSTreeManagerServer is the server API for FSTreeManager service.
 // All implementations must embed UnimplementedFSTreeManagerServer
 // for forward compatibility.
@@ -123,9 +136,9 @@ func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *PurgeReplica
 // stored separately for each user.
 //
 // We use user_id instead of user_name/user_uuid since it's more accessible:
-// - fsentry include user_id
+// - fsentry include user_id but not user_name/user_uuid
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L81)
-// - user_id is included in the fs events listener
+// - user_id is included in the fs events listener where user_name/user_uuid are not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
 type FSTreeManagerServer interface {
 	FetchReplica(context.Context, *FetchReplicaRequest) (*MerkleTree, error)
@@ -143,6 +156,8 @@ type FSTreeManagerServer interface {
 	// For any fs operations that cannot be handled by New/Remove APIs, just purge
 	// the replica.
 	PurgeReplica(context.Context, *PurgeReplicaRequest) (*emptypb.Empty, error)
+	// Initialize or rebuild a user's filesystem tree from the database
+	InitReplica(context.Context, *InitReplicaRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedFSTreeManagerServer()
 }
 
@@ -167,6 +182,9 @@ func (UnimplementedFSTreeManagerServer) RemoveFSEntry(context.Context, *RemoveFS
 }
 func (UnimplementedFSTreeManagerServer) PurgeReplica(context.Context, *PurgeReplicaRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PurgeReplica not implemented")
+}
+func (UnimplementedFSTreeManagerServer) InitReplica(context.Context, *InitReplicaRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitReplica not implemented")
 }
 func (UnimplementedFSTreeManagerServer) mustEmbedUnimplementedFSTreeManagerServer() {}
 func (UnimplementedFSTreeManagerServer) testEmbeddedByValue()                       {}
@@ -279,6 +297,24 @@ func _FSTreeManager_PurgeReplica_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FSTreeManager_InitReplica_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitReplicaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FSTreeManagerServer).InitReplica(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FSTreeManager_InitReplica_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FSTreeManagerServer).InitReplica(ctx, req.(*InitReplicaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FSTreeManager_ServiceDesc is the grpc.ServiceDesc for FSTreeManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -305,6 +341,10 @@ var FSTreeManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PurgeReplica",
 			Handler:    _FSTreeManager_PurgeReplica_Handler,
+		},
+		{
+			MethodName: "InitReplica",
+			Handler:    _FSTreeManager_InitReplica_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

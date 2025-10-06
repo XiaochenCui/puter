@@ -11,9 +11,9 @@ option go_package = "github.com/puter/fs_tree_manager";
 // stored separately for each user.
 //
 // We use user_id instead of user_name/user_uuid since it's more accessible:
-// - fsentry include user_id
+// - fsentry include user_id but not user_name/user_uuid
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L81)
-// - user_id is included in the fs events listener
+// - user_id is included in the fs events listener where user_name/user_uuid are not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
 service FSTreeManager {
   rpc FetchReplica(FetchReplicaRequest) returns (MerkleTree);
@@ -34,6 +34,9 @@ service FSTreeManager {
   // For any fs operations that cannot be handled by New/Remove APIs, just purge
   // the replica.
   rpc PurgeReplica(PurgeReplicaRequest) returns (google.protobuf.Empty);
+
+  // Initialize or rebuild a user's filesystem tree from the database
+  rpc InitReplica(InitReplicaRequest) returns (google.protobuf.Empty);
 }
 
 message FetchReplicaRequest { int64 user_id = 1; }
@@ -49,6 +52,8 @@ message RemoveFSEntryRequest {
 }
 
 message PurgeReplicaRequest { int64 user_id = 1; }
+
+message InitReplicaRequest { int64 user_id = 1; }
 
 message MerkleNode {
   // We use the stable uuid from fs_entry so pointers to it stay valid when this
@@ -72,7 +77,7 @@ message MerkleNode {
 message MerkleTree {
   string root_uuid = 1;
 
-  // id -> node
+  // uuid -> node
   map<string, MerkleNode> nodes = 2;
 }
 

@@ -16,22 +16,22 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-const APIError = require("../../api/APIError");
-const { chkperm } = require("../../helpers");
-const { TYPE_DIRECTORY } = require("../FSNodeContext");
-const { LLRmDir } = require("../ll_operations/ll_rmdir");
-const { LLRmNode } = require("../ll_operations/ll_rmnode");
-const { HLFilesystemOperation } = require("./definitions");
-const { sendFsRemove } = require("../../routers/filesystem_api/fs_tree_manager/fs_update");
+const APIError = require('../../api/APIError');
+const { chkperm } = require('../../helpers');
+const { TYPE_DIRECTORY } = require('../FSNodeContext');
+const { LLRmDir } = require('../ll_operations/ll_rmdir');
+const { LLRmNode } = require('../ll_operations/ll_rmnode');
+const { HLFilesystemOperation } = require('./definitions');
+const { sendFsRemove } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
 class HLRemove extends HLFilesystemOperation {
     static PARAMETERS = {
         target: {},
         user: {},
         recursive: {},
         descendants_only: {},
-    }
+    };
 
-    async _run () {
+    async _run() {
         const { target, user } = this.values;
 
         if ( ! await target.exists() ) {
@@ -48,18 +48,38 @@ class HLRemove extends HLFilesystemOperation {
 
             // ================== client-replica hook start ==================
             // "remove" hook
-            {
-                const target = this.values.target;
-                const uuid = target.entry.uuid || target.entry.uid;
-                sendFsRemove(user.id, uuid);
-            }
+            (async () => {
+                try {
+                    const target = this.values.target;
+                    const uuid = target.entry.uuid || target.entry.uid;
+                    await sendFsRemove(user.id, uuid);
+                } catch( e ) {
+                    console.error(e);
+                }
+            })();
             // ================== client-replica hook end ====================
 
             return result;
         }
 
         const ll_rmnode = new LLRmNode();
-        return await ll_rmnode.run(this.values);
+
+        const result = await ll_rmnode.run(this.values);
+
+        // ================== client-replica hook start ==================
+        // "remove" hook
+        (async () => {
+            try {
+                const target = this.values.target;
+                const uuid = target.entry.uuid || target.entry.uid;
+                await sendFsRemove(user.id, uuid);
+            } catch( e ) {
+                console.error(e);
+            }
+        })();
+        // ================== client-replica hook end ====================
+
+        return result;
     }
 }
 
