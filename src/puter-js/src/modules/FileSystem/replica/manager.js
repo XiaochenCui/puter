@@ -188,7 +188,7 @@ class ReplicaManager {
         }
 
         const paths = pushRequest.map(item => item.fs_entry.path);
-        console.log(`push request: ${paths}`);
+        console.log(`push request from server: ${paths}`);
 
         const nextPullRequest = [];
 
@@ -217,13 +217,16 @@ class ReplicaManager {
                 const serverChildren = pushItem.children.map(child => child.uuid);
 
                 // fsentry removed from server, remove it in local as well
-                for ( const localChildId of localChildren ) {
+                //
+                // NB: Must use a snapshot to avoid the “mutate-while-iterating” trap.
+                for ( const localChildId of [...localChildren] ) {
                     if ( !serverChildren.includes(localChildId) ) {
                         this.removeNodeAndDescendants(localChildId);
                     }
                 }
 
-                for ( const child of pushItem.children ) {
+                // NB: Must use a snapshot to avoid the “mutate-while-iterating” trap.
+                for ( const child of [...pushItem.children] ) {
                     const localChild = this.fs_tree.nodes[child.uuid];
 
                     if ( !localChild ) {

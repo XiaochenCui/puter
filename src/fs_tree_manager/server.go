@@ -10,6 +10,7 @@ import (
 	"net"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -48,11 +49,13 @@ var (
 	// The global lock.
 	treesLock sync.RWMutex
 
+	// Memory threshold in bytes (2GB)
+	memoryThresholdBytes int64 = 2 * 1024 * 1024 * 1024
+
 	// Make FS-Tree Manager unstable and laggy.
 	chaos = false
 
-	// Memory threshold in bytes (2GB)
-	memoryThresholdBytes int64 = 2 * 1024 * 1024 * 1024
+	debug = false
 )
 
 func newMerkleTree(tree *pb.MerkleTree) *merkleTree {
@@ -280,30 +283,17 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 
 	recalculateAncestorHashes(tree, uid)
 
-	log.Printf("[user %d] new fs entry: %s", userID, metadataMap["path"])
+	if debug {
+		parentPath := parentNode.FsEntry.Metadata.AsMap()["path"].(string)
+		parentUUID = parentNode.Uuid
+		log.Printf("[user %d] new fs entry, (path: %s, uuid: %s), (parent_path: %s, parent_uuid: %s)", userID, metadataMap["path"], uid, parentPath, parentUUID)
+		integrityCheck()
+	}
 
 	return &emptypb.Empty{}, nil
 }
 
-// getUUID tries to get the UUID from uuid/id field.
-func getUUID(metadata map[string]any) (UUID string, err error) {
-	v, ok := metadata["uuid"]
-	if ok {
-		if _, ok := v.(string); !ok {
-			return "", fmt.Errorf("uuid is not a string")
-		}
-		return v.(string), nil
-	}
-	v, ok = metadata["id"]
-	if ok {
-		if _, ok := v.(string); !ok {
-			return "", fmt.Errorf("uuid is not a string")
-		}
-		return v.(string), nil
-	}
-	return "", fmt.Errorf("uuid not found")
-}
-
+// TODO: remove this once parent_path is always consistent with parent_uuid
 func getParentUUID(metadata map[string]any, nodes map[string]*pb.MerkleNode) (UUID string, err error) {
 	// Check the inconsistency between "parent_path" and "parent_uuid", the inconsistency
 	// occurs in several scenarios:
@@ -391,7 +381,12 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		recalculateAncestorHashes(tree, targetNode.ParentUuid)
 	}
 
-	log.Printf("[user %d] removed fs entry, path: %s", userID, targetNode.FsEntry.Metadata.AsMap()["path"])
+	if debug {
+		parentPath := targetNode.FsEntry.Metadata.AsMap()["path"].(string)
+		parentUUID := targetNode.ParentUuid
+		log.Printf("[user %d] removed fs entry, (path: %s, uuid: %s), (parent_path: %s, parent_uuid: %s)", userID, targetNode.FsEntry.Metadata.AsMap()["path"], uid, parentPath, parentUUID)
+		integrityCheck()
+	}
 
 	return &emptypb.Empty{}, nil
 }
@@ -586,7 +581,6 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 	parentChildMap := make(map[string][]string)
 
 	var rootUUID string
-	var rootPath string
 
 	for rows.Next() {
 		var uuid, name, path string
@@ -637,7 +631,6 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 
 		if strings.Count(path, "/") == 1 {
 			rootUUID = uuid
-			rootPath = path
 		}
 	}
 
@@ -656,21 +649,62 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 		Nodes:    nodes,
 	}
 
-	// Heavy check to ensure the tree is consistent, remove this once client-replica is
-	// mature.
-	integrityCheck(tree, rootPath, userID)
-
 	calculateTreeMerkleHashes(tree)
 
 	return tree, nil
 }
 
-func integrityCheck(tree *pb.MerkleTree, rootPath string, userID int64) {
-	// root path should be the prefix of all other paths
-	for _, node := range tree.Nodes {
-		nodePath := node.FsEntry.Metadata.AsMap()["path"].(string)
-		if !strings.HasPrefix(nodePath, rootPath) {
-			log.Fatalf("[user %d] prefix check failed, root path: %s, node path: %s", userID, rootPath, nodePath)
+func integrityCheck() {
+	treesLock.RLock()
+	defer treesLock.RUnlock()
+
+	for userID, warppedTree := range trees {
+		tree := warppedTree.tree
+
+		root, exists := tree.Nodes[tree.RootUuid]
+		if !exists {
+			log.Fatalf("[user %d] root uuid not found: %s", userID, tree.RootUuid)
+		}
+		rootPath := root.FsEntry.Metadata.AsMap()["path"].(string)
+
+		for UUID, node := range tree.Nodes {
+			// check: uuid is consistent
+			if UUID != node.Uuid {
+				log.Fatalf("[user %d] uuid is inconsistent: %s != %s", userID, UUID, node.Uuid)
+			}
+
+			// check with parent
+			if node.Uuid != tree.RootUuid {
+				// check: all node should have a parent
+				if node.ParentUuid == "" {
+					log.Fatalf("[user %d] parent uuid is empty: %s", userID, node.Uuid)
+				}
+
+				// check: parent uuid is valid
+				parent, exists := tree.Nodes[node.ParentUuid]
+				if !exists {
+					log.Fatalf("[user %d] parent uuid not found: %s", userID, node.ParentUuid)
+				}
+
+				// check: parent has self as a child
+				if !slices.Contains(parent.ChildrenUuids, node.Uuid) {
+					log.Fatalf("[user %d] parent has self as a child: %s", userID, node.Uuid)
+				}
+
+				// check: parent path is a prefix
+				parentPath := parent.FsEntry.Metadata.AsMap()["path"].(string)
+				if !strings.HasPrefix(parentPath, rootPath) {
+					log.Fatalf("[user %d] parent path is not a prefix: %s", userID, parentPath)
+				}
+			}
+
+			// check with children
+			for _, childUUID := range node.ChildrenUuids {
+				// check: child uuid is valid
+				if _, exists := tree.Nodes[childUUID]; !exists {
+					log.Fatalf("[user %d] child uuid not found: %s", userID, childUUID)
+				}
+			}
 		}
 	}
 }

@@ -60,7 +60,7 @@ const move = function (...args) {
                 originalSuccess(...args);
             }
 
-            console.log('move: success', args);
+            console.log('[unimplemented] local move hook, args:', args);
         };
 
         // set up event handlers for load and error events
