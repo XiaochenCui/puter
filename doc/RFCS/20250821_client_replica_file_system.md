@@ -176,20 +176,32 @@ Just a standalone service that manages the FS-Tree.
 #### Hooks in Puter Backend
 
 - [X] mkdir (`fs.create.*` event) (code: `src/backend/src/services/WSPushService.js`)
-- [ ] new file
-- [ ] write file
+- [X] new file
+  - code: `src/backend/src/filesystem/hl_operations/hl_mkdir.js`
+  - implementation: newFSEntry
+- [X] write file
+  - code: `src/backend/src/filesystem/hl_operations/hl_write.js`
+  - implementation: newFSEntry
 - [X] rename (code: `src/backend/src/routers/filesystem_api/rename.js`)
 - [X] move (`fs.move.*` event) (code: `src/backend/src/services/WSPushService.js`)
 - [X] delete file/dir (code: `src/backend/src/filesystem/hl_operations/hl_remove.js`)
 
 #### Hooks in Puter-JS
 
-- [X] mkdir (code: `src/puter-js/src/modules/FileSystem/operations/mkdir.js`)
+- [X] mkdir
+  - code: `src/puter-js/src/modules/FileSystem/operations/mkdir.js`
+  - implementation: newFSEntry
 - [ ] new file
 - [ ] write file
-- [X] rename (code: `src/puter-js/src/modules/FileSystem/operations/rename.js`)
-- [ ] move
-- [ ] delete file/dir
+- [X] rename
+  - code: `src/puter-js/src/modules/FileSystem/operations/rename.js`
+  - implementation: dedicated rename api (since complete fsentry is not available)
+- [X] move
+  - code: `src/puter-js/src/modules/FileSystem/operations/move.js`
+  - implementation: removeFSEntry + newFSEntry
+- [X] delete file/dir
+  - code: `src/puter-js/src/modules/FileSystem/operations/deleteFSEntry.js`
+  - implementation: removeFSEntry + findNodeByPath (since only path is available)
 
 - [X] stat (code: `src/puter-js/src/modules/FileSystem/operations/stat.js`)
 - [X] readdir (code: `src/puter-js/src/modules/FileSystem/operations/readdir.js`)

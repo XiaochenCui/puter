@@ -50,10 +50,11 @@ const rename = function (...args) {
                     console.error('client-replica: rename hook only supports 1 argument, got', args);
                     return;
                 }
-                console.log('local rename hook, args:', args);
+                if ( puter.fs.replica.debug ) {
+                    console.log('local rename hook, args:', args);
+                }
                 const renamed = args[0];
-                puter.fs.replica.fs_tree.removeFSEntry(renamed.uid);
-                puter.fs.replica.fs_tree.newFSEntry(renamed);
+                puter.fs.replica.fs_tree.rename(renamed.uid, renamed.name, renamed.path);
                 puter.fs.replica.last_local_update = Date.now();
             }
             // ================== client-replica hook end ==================

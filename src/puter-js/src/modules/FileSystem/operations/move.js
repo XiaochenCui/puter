@@ -66,8 +66,14 @@ const move = function (...args) {
                     console.error('client-replica: move hook only supports 1 argument, got', args);
                     return;
                 }
-                console.log('local move hook, args:', args);
-                const moved = args[0];
+                if ( puter.fs.replica.debug ) {
+                    console.log('local move hook, args:', args);
+                }
+                const moved = args[0]?.moved;
+                if ( !moved ) {
+                    console.error('client-replica: move object is empty, got', args);
+                    return;
+                }
                 puter.fs.replica.fs_tree.removeFSEntry(moved.uid);
                 puter.fs.replica.fs_tree.newFSEntry(moved);
                 puter.fs.replica.last_local_update = Date.now();

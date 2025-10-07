@@ -22,7 +22,7 @@ const { TYPE_DIRECTORY } = require('../FSNodeContext');
 const { LLRmDir } = require('../ll_operations/ll_rmdir');
 const { LLRmNode } = require('../ll_operations/ll_rmnode');
 const { HLFilesystemOperation } = require('./definitions');
-const { sendFsRemove } = require('../../routers/filesystem_api/fs_tree_manager/common');
+const { sendFSRemove } = require('../../routers/filesystem_api/fs_tree_manager/common');
 
 class HLRemove extends HLFilesystemOperation {
     static PARAMETERS = {
@@ -53,7 +53,7 @@ class HLRemove extends HLFilesystemOperation {
                 try {
                     const target = this.values.target;
                     const uuid = target.entry.uuid || target.entry.uid;
-                    await sendFsRemove(user.id, uuid);
+                    await sendFSRemove(user.id, uuid);
                 } catch( e ) {
                     console.error(e);
                 }
@@ -73,7 +73,7 @@ class HLRemove extends HLFilesystemOperation {
             try {
                 const target = this.values.target;
                 const uuid = target.entry.uuid || target.entry.uid;
-                await sendFsRemove(user.id, uuid);
+                await sendFSRemove(user.id, uuid);
             } catch( e ) {
                 console.error(e);
             }

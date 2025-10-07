@@ -255,7 +255,19 @@ class FSTree {
 
         delete this.nodes[uuid];
 
-        await this.recalculateAncestorHashes(node.parent_uuid);
+        this.recalculateAncestorHashes(node.parent_uuid);
+    }
+
+    async rename(uuid, new_name, new_path) {
+        const node = this.findNodeByUUID(uuid);
+        if ( !node ) {
+            throw new Error(`Node not found: ${uuid}`);
+        }
+        
+        node.fs_entry.name = new_name;
+        node.fs_entry.path = new_path;
+
+        this.recalculateAncestorHashes(uuid);
     }
 }
 

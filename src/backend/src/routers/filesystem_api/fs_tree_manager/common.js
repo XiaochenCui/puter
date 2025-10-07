@@ -30,7 +30,7 @@ const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.creat
  * @returns {Promise<void>} - Resolves when the entry is sent successfully
  * @throws {Error} - If the gRPC call fails
  */
-async function sendFsNew(userId, metadata) {
+async function sendFSNew(userId, metadata) {
     return new Promise((resolve, reject) => {
         if ( !userId ) {
             reject(new Error('User ID is required'));
@@ -51,7 +51,7 @@ async function sendFsNew(userId, metadata) {
                 reject(new Error(`[xiaochen-error] Failed to send fs new entry: ${err.message}`));
                 return;
             }
-            console.log(`[xiaochen-log] sendFsNew: ${userId}, ${metadata.path}`);
+            console.log(`[xiaochen-log] sendFSNew: ${userId}, ${metadata.path}`);
             resolve();
         });
     });
@@ -64,7 +64,7 @@ async function sendFsNew(userId, metadata) {
  * @returns {Promise<void>} - Resolves when the entry is sent successfully
  * @throws {Error} - If the gRPC call fails
  */
-async function sendFsRemove(userId, uuid) {
+async function sendFSRemove(userId, uuid) {
     return new Promise((resolve, reject) => {
         if ( !userId ) {
             reject(new Error('User ID is required'));
@@ -84,7 +84,7 @@ async function sendFsRemove(userId, uuid) {
                 reject(new Error(`[xiaochen-error] Failed to send fs remove entry: ${err.message}`));
                 return;
             }
-            console.log(`[xiaochen-log] sendFsRemove: ${userId}, ${uuid}`);
+            console.log(`[xiaochen-log] sendFSRemove: ${userId}, ${uuid}`);
             resolve();
         });
     });
@@ -186,8 +186,8 @@ module.exports = {
     Struct,
 
     // Helper functions
-    sendFsNew,
-    sendFsRemove,
+    sendFSNew,
+    sendFSRemove,
     buildFsEntry,
     sanitizeForStruct,
 };

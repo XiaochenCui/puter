@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 const BaseService = require('./BaseService');
-const { sendFsNew, sendFsRemove } = require('../routers/filesystem_api/fs_tree_manager/common');
+const { sendFSNew, sendFSRemove } = require('../routers/filesystem_api/fs_tree_manager/common');
 class WSPushService  extends BaseService {
     /**
     * Initializes the WSPushService by setting up event listeners for various file system operations.
@@ -78,7 +78,7 @@ class WSPushService  extends BaseService {
         // ================== client-replica hook start ==================
         // "create" hook
         for ( const user_id of user_id_list ) {
-            await sendFsNew(user_id, response);
+            await sendFSNew(user_id, response);
         }
         // ================== client-replica hook end ====================
     }
@@ -185,8 +185,8 @@ class WSPushService  extends BaseService {
         // NB: UUID comes from uuid/uid, need to handle both.
         const uuid = response.uuid || response.uid;
         for ( const user_id of user_id_list ) {
-            await sendFsRemove(user_id, uuid);
-            await sendFsNew(user_id, response);
+            await sendFSRemove(user_id, uuid);
+            await sendFSNew(user_id, response);
         }
         // ================== client-replica hook end ====================
     }

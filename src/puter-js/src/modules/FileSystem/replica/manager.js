@@ -30,6 +30,8 @@ class ReplicaManager {
         this.available = false;
         this.fs_tree = null;
         this.last_local_update = 0; // milliseconds since epoch
+
+        this.debug = true;
     }
 
     /**
@@ -188,7 +190,9 @@ class ReplicaManager {
         }
 
         const paths = pushRequest.map(item => item.fs_entry.path);
-        console.log(`push request from server: ${paths}`);
+        if ( this.debug ) {
+            console.log(`push request from server: ${paths}`);
+        }
 
         const nextPullRequest = [];
 
