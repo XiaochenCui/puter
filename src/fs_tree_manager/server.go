@@ -55,7 +55,7 @@ var (
 	// Make FS-Tree Manager unstable and laggy.
 	chaos = false
 
-	debug = false
+	debug = true
 )
 
 func newMerkleTree(tree *pb.MerkleTree) *merkleTree {
@@ -663,38 +663,38 @@ func integrityCheck() {
 
 		root, exists := tree.Nodes[tree.RootUuid]
 		if !exists {
-			log.Fatalf("[user %d] root uuid not found: %s", userID, tree.RootUuid)
+			log.Panicf("[user %d] root uuid not found: %s", userID, tree.RootUuid)
 		}
 		rootPath := root.FsEntry.Metadata.AsMap()["path"].(string)
 
 		for UUID, node := range tree.Nodes {
 			// check: uuid is consistent
 			if UUID != node.Uuid {
-				log.Fatalf("[user %d] uuid is inconsistent: %s != %s", userID, UUID, node.Uuid)
+				log.Panicf("[user %d] uuid is inconsistent: %s != %s", userID, UUID, node.Uuid)
 			}
 
 			// check with parent
 			if node.Uuid != tree.RootUuid {
 				// check: all node should have a parent
 				if node.ParentUuid == "" {
-					log.Fatalf("[user %d] parent uuid is empty: %s", userID, node.Uuid)
+					log.Panicf("[user %d] parent uuid is empty: %s", userID, node.Uuid)
 				}
 
 				// check: parent uuid is valid
 				parent, exists := tree.Nodes[node.ParentUuid]
 				if !exists {
-					log.Fatalf("[user %d] parent uuid not found: %s", userID, node.ParentUuid)
+					log.Panicf("[user %d] parent uuid not found: %s", userID, node.ParentUuid)
 				}
 
 				// check: parent has self as a child
 				if !slices.Contains(parent.ChildrenUuids, node.Uuid) {
-					log.Fatalf("[user %d] parent has self as a child: %s", userID, node.Uuid)
+					log.Panicf("[user %d] parent has self as a child: %s", userID, node.Uuid)
 				}
 
 				// check: parent path is a prefix
 				parentPath := parent.FsEntry.Metadata.AsMap()["path"].(string)
 				if !strings.HasPrefix(parentPath, rootPath) {
-					log.Fatalf("[user %d] parent path is not a prefix: %s", userID, parentPath)
+					log.Panicf("[user %d] parent path is not a prefix: %s", userID, parentPath)
 				}
 			}
 
@@ -702,7 +702,7 @@ func integrityCheck() {
 			for _, childUUID := range node.ChildrenUuids {
 				// check: child uuid is valid
 				if _, exists := tree.Nodes[childUUID]; !exists {
-					log.Fatalf("[user %d] child uuid not found: %s", userID, childUUID)
+					log.Panicf("[user %d] child uuid not found: %s", userID, childUUID)
 				}
 			}
 		}
@@ -748,17 +748,17 @@ func main() {
 
 	db, err := sql.Open("sqlite3", sqliteDBPath)
 	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
+		log.Panicf("Failed to open database: %v", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		log.Panicf("Failed to ping database: %v", err)
 	}
 
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		log.Panicf("Failed to listen: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
@@ -768,6 +768,6 @@ func main() {
 	})
 
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		log.Panicf("Failed to serve: %v", err)
 	}
 }
