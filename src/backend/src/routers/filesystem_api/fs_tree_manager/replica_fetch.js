@@ -24,23 +24,12 @@
 // -----------------------------------------------------------------------//
 module.exports = {
     event: 'replica/fetch',
-    handler: async (socket, data) => {
-        // ----------------------------
-        // gRPC generated code
-        // ----------------------------
-        const grpc = require('@grpc/grpc-js');
-        const path = require('path');
-
-        // Adjust these paths to where your generated files live:
-        const genDir = path.join(__dirname, '../../../../../fs_tree_manager/js');
+    handler: async (socket, _data) => {
+        // Import gRPC client and protobuf classes from common
         const {
-            FSTreeManagerClient,
-        } = require(path.join(genDir, 'fs_tree_manager_grpc_pb.js'));
-        const {
+            client,
             FetchReplicaRequest,
-        } = require(path.join(genDir, 'fs_tree_manager_pb.js'));
-
-        const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.createInsecure());
+        } = require('./common');
 
         // Build the request message
         const requestMsg = new FetchReplicaRequest();

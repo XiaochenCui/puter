@@ -12,6 +12,9 @@ const {
     FSEntry,
     NewFSEntryRequest,
     RemoveFSEntryRequest,
+    PullRequest,
+    PullRequestItem,
+    FetchReplicaRequest,
 } = require(path.join(genDir, 'fs_tree_manager_pb.js'));
 
 // protobuf built-in types
@@ -172,6 +175,19 @@ function buildFsEntry(metadataObj) {
 }
 
 module.exports = {
+    // gRPC client and protobuf classes
+    client,
+    FSEntry,
+    NewFSEntryRequest,
+    RemoveFSEntryRequest,
+    PullRequest,
+    PullRequestItem,
+    FetchReplicaRequest,
+    Struct,
+
+    // Helper functions
     sendFsNew,
     sendFsRemove,
+    buildFsEntry,
+    sanitizeForStruct,
 };

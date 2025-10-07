@@ -22,7 +22,8 @@ const { TYPE_DIRECTORY } = require('../FSNodeContext');
 const { LLRmDir } = require('../ll_operations/ll_rmdir');
 const { LLRmNode } = require('../ll_operations/ll_rmnode');
 const { HLFilesystemOperation } = require('./definitions');
-const { sendFsRemove } = require('../../routers/filesystem_api/fs_tree_manager/fs_update');
+const { sendFsRemove } = require('../../routers/filesystem_api/fs_tree_manager/common');
+
 class HLRemove extends HLFilesystemOperation {
     static PARAMETERS = {
         target: {},

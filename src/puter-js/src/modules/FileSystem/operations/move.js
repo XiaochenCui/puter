@@ -60,7 +60,18 @@ const move = function (...args) {
                 originalSuccess(...args);
             }
 
-            console.log('[unimplemented] local move hook, args:', args);
+            // ================== client-replica hook start ==================
+            if ( puter.fs.replica.available ) {
+                if ( args.length !== 1 ) {
+                    console.error('client-replica: move hook only supports 1 argument, got', args);
+                    return;
+                }
+                console.log('local move hook, args:', args);
+                const moved = args[0];
+                puter.fs.replica.fs_tree.removeFSEntry(moved.uid);
+                puter.fs.replica.fs_tree.newFSEntry(moved);
+                puter.fs.replica.last_local_update = Date.now();
+            }
         };
 
         // set up event handlers for load and error events

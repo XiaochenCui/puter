@@ -51,8 +51,9 @@ const mkdir = function(...args) {
                     console.error('client-replica: mkdir hook only supports 1 argument, got', args);
                     return;
                 }
-                const fs_entry = args[0];
-                puter.fs.replica.fs_tree.newFSEntry(fs_entry);
+                console.log('local mkdir hook, args:', args);
+                const new_fs_entry = args[0];
+                puter.fs.replica.fs_tree.newFSEntry(new_fs_entry);
                 puter.fs.replica.last_local_update = Date.now();
             }
             // ================== client-replica hook end ==================

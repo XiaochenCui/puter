@@ -202,19 +202,11 @@ class FSTree {
         return node?.fs_entry;
     }
 
-    /**
-     * Add a new directory to the tree
-     * @param {Object} fs_entry - The fs_entry object of the new directory
-     */
+    // mimic rpc:
+    // rpc NewFSEntry(NewFSEntryRequest) returns (google.protobuf.Empty);
     async newFSEntry(fs_entry) {
         if ( !fs_entry || !fs_entry.uid ) {
             throw new Error('Invalid fs_entry: must have uid');
-        }
-
-        // Find the parent directory by uid
-        const parentNode = this.findNodeByUUID(fs_entry.parent_uid);
-        if ( !parentNode ) {
-            throw new Error(`Parent directory not found: ${fs_entry.parent_uid}`);
         }
 
         const newNode = {
@@ -225,44 +217,45 @@ class FSTree {
             children_uuids: [],
         };
 
-        this.nodes[fs_entry.uid] = newNode;
+        this.nodes[newNode.uuid] = newNode;
+
+        if ( !newNode.parent_uuid ) {
+            throw new Error('Invalid fs_entry: must have parent_uid');
+        }
+
+        const parentNode = this.findNodeByUUID(newNode.parent_uuid);
+        if ( !parentNode ) {
+            throw new Error(`Parent directory not found: ${newNode.parent_uuid}`);
+        }
 
         if ( !parentNode.children_uuids ) {
             parentNode.children_uuids = [];
         }
-        parentNode.children_uuids.push(fs_entry.uid);
+        parentNode.children_uuids.push(newNode.uuid);
 
-        await this.recalculateAncestorHashes(fs_entry.uid);
+        await this.recalculateAncestorHashes(newNode.uuid);
     }
 
-    /**
-     * Rename a file or directory in the tree
-     * @param {string} uuid - UUID of the node to rename
-     * @param {string} new_name - New name for the node
-     */
-    async rename(uuid, new_name) {
+    // mimic rpc:
+    // rpc RemoveFSEntry(RemoveFSEntryRequest) returns (google.protobuf.Empty);
+    async removeFSEntry(uuid) {
         const node = this.findNodeByUUID(uuid);
         if ( !node ) {
             throw new Error(`Node not found: ${uuid}`);
         }
 
-        if ( !node.fs_entry ) {
-            throw new Error(`Node has no fs_entry: ${uuid}`);
+        if ( node.parent_uuid ) {
+            const parentNode = this.findNodeByUUID(node.parent_uuid);
+            if ( parentNode ) {
+                parentNode.children_uuids = parentNode.children_uuids.filter(childId => childId !== uuid);
+            } else {
+                throw new Error(`Parent directory not found: ${node.parent_uuid}`);
+            }
         }
 
-        // Update the name in the fs_entry
-        const old_name = node.fs_entry.name;
-        node.fs_entry.name = new_name;
+        delete this.nodes[uuid];
 
-        // Update the path by replacing the last part with the new name
-        const old_path = node.fs_entry.path;
-        const path_parts = old_path.split('/');
-        path_parts[path_parts.length - 1] = new_name;
-        const new_path = path_parts.join('/');
-        node.fs_entry.path = new_path;
-
-        // Recalculate Merkle hashes for this node and all its ancestors
-        await this.recalculateAncestorHashes(uuid);
+        await this.recalculateAncestorHashes(node.parent_uuid);
     }
 }
 

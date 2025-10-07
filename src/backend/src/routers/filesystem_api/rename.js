@@ -22,7 +22,8 @@ const APIError = require('../../api/APIError.js');
 const { Context } = require('../../util/context.js');
 const FSNodeParam = require('../../api/filesystem/FSNodeParam.js');
 const { DB_WRITE } = require('../../services/database/consts.js');
-const { sendFsRemove, sendFsNew } = require('./fs_tree_manager/fs_update');
+const { sendFsRemove, sendFsNew } = require('./fs_tree_manager/common');
+
 
 // -----------------------------------------------------------------------//
 // POST /rename

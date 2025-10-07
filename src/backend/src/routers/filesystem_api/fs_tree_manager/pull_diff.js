@@ -27,23 +27,12 @@ module.exports = {
     handler: async (socket, data) => {
         console.log(`replica/pull_diff: ${JSON.stringify(data)}`);
 
-        // ----------------------------
-        // gRPC generated code
-        // ----------------------------
-        const grpc = require('@grpc/grpc-js');
-        const path = require('path');
-
-        // Adjust these paths to where your generated files live:
-        const genDir = path.join(__dirname, '../../../../../fs_tree_manager/js');
+        // Import gRPC client and protobuf classes from common
         const {
-            FSTreeManagerClient,
-        } = require(path.join(genDir, 'fs_tree_manager_grpc_pb.js'));
-        const {
+            client,
             PullRequest,
             PullRequestItem,
-        } = require(path.join(genDir, 'fs_tree_manager_pb.js'));
-
-        const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.createInsecure());
+        } = require('./common');
 
         try {
             // Build the PullRequest message

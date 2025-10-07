@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 const BaseService = require('./BaseService');
-const { sendFsNew, sendFsRemove } = require('../routers/filesystem_api/fs_tree_manager/fs_update');
+const { sendFsNew, sendFsRemove } = require('../routers/filesystem_api/fs_tree_manager/common');
 class WSPushService  extends BaseService {
     /**
     * Initializes the WSPushService by setting up event listeners for various file system operations.
