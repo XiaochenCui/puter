@@ -267,16 +267,6 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 
 	tree.Nodes[uid] = newNode
 
-	{
-		parentMetadata := parentNode.FsEntry.Metadata.AsMap()
-		parentPath := parentMetadata["path"].(string)
-		parentUUID, err := getUUID(parentMetadata)
-		if err != nil {
-			return nil, err
-		}
-		log.Printf("[user %d] adding fs entry: %s to parent (path: %s, uuid: %s)", userID, uid, parentPath, parentUUID)
-	}
-
 	parentNode.ChildrenUuids = append(parentNode.ChildrenUuids, uid)
 
 	newNode.MerkleHash = calculateMerkleHash(newNode, []string{})
@@ -371,14 +361,6 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 	// Remove the node from its parent's children list
 	if targetNode.ParentUuid != "" {
 		if parentNode, parentExists := tree.Nodes[targetNode.ParentUuid]; parentExists {
-			path := targetNode.FsEntry.Metadata.AsMap()["path"].(string)
-			parentMetadata := parentNode.FsEntry.Metadata.AsMap()
-			parentPath := parentMetadata["path"].(string)
-			parentUUID, err := getUUID(parentMetadata)
-			if err != nil {
-				return nil, err
-			}
-			log.Printf("[user %d] removing fs entry: %s from parent (path: %s, uuid: %s)", userID, path, parentPath, parentUUID)
 			for i, childUUID := range parentNode.ChildrenUuids {
 				if childUUID == uid {
 					parentNode.ChildrenUuids = append(parentNode.ChildrenUuids[:i], parentNode.ChildrenUuids[i+1:]...)
@@ -396,7 +378,7 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		recalculateAncestorHashes(tree, targetNode.ParentUuid)
 	}
 
-	log.Printf("[user %d] removed fs entry: %s", userID, targetNode.FsEntry.Metadata.AsMap()["path"])
+	log.Printf("[user %d] removed fs entry, path: %s", userID, targetNode.FsEntry.Metadata.AsMap()["path"])
 
 	return &emptypb.Empty{}, nil
 }

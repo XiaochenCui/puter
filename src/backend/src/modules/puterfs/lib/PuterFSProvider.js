@@ -226,6 +226,12 @@ class PuterFSProvider extends putility.AdvancedBase {
         {
             const new_parent_uid = await new_parent.get('uid');
             node.entry.parent_uid = new_parent_uid;
+
+            const db = services.get('database').get(DB_WRITE, 'filesystem');
+            await db.write(
+                'UPDATE fsentries SET parent_uid = ? WHERE uuid = ?',
+                [new_parent_uid, node.uid]
+            );
         }
         // ================== client-replica patch end ====================
 
