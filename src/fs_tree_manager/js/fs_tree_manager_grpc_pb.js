@@ -101,7 +101,8 @@ function deserialize_google_protobuf_Empty(buffer_arg) {
 // We use user_id instead of user_name/user_uuid since it's more accessible:
 // - fsentry include user_id but not user_name/user_uuid
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/database/sqlite_setup/0001_create-tables.sql#L81)
-// - user_id is included in the fs events listener where user_name/user_uuid are not available
+// - user_id is included in the fs events listener where user_name/user_uuid are
+// not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
 var FSTreeManagerService = exports.FSTreeManagerService = {
   fetchReplica: {
@@ -142,10 +143,7 @@ newFSEntry: {
     responseSerialize: serialize_google_protobuf_Empty,
     responseDeserialize: deserialize_google_protobuf_Empty,
   },
-  // Use UUID instead of FSEntry since:
-// 1. UUID is enough to identify a node
-// 2. FSEntry is inaccessable in many cases
-removeFSEntry: {
+  removeFSEntry: {
     path: '/fs_tree_manager.FSTreeManager/RemoveFSEntry',
     requestStream: false,
     responseStream: false,
