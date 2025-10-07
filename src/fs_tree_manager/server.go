@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -22,10 +23,15 @@ import (
 )
 
 type (
-	lockedMerkleTree struct {
-		tree       *pb.MerkleTree
-		lock       sync.RWMutex
+	merkleTree struct {
+		tree *pb.MerkleTree
+		lock sync.RWMutex
+
+		// Last time the tree was synced from database.
 		lastSynced time.Time
+
+		// Last time the tree was read (by FetchReplica/PullDiff).
+		lastRead time.Time
 	}
 
 	server struct {
@@ -36,85 +42,80 @@ type (
 
 var (
 	// In-memory tree cache by user_id.
-	trees map[int64]*lockedMerkleTree
+	trees map[int64]*merkleTree
 
 	// The global lock.
 	treesLock sync.RWMutex
 
 	// Make FS-Tree Manager unstable and laggy.
 	debug = true
+
+	// Memory threshold in bytes (2GB)
+	memoryThresholdBytes int64 = 2 * 1024 * 1024 * 1024
 )
+
+func newMerkleTree(tree *pb.MerkleTree) *merkleTree {
+	return &merkleTree{
+		tree:       tree,
+		lastSynced: time.Now(),
+	}
+}
+
+// checkMemoryUsage checks if the current memory usage exceeds the threshold
+func checkMemoryUsage() error {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	if m.Alloc > uint64(memoryThresholdBytes) {
+		return fmt.Errorf("memory usage (%d bytes) exceeds threshold (%d bytes)", m.Alloc, memoryThresholdBytes)
+	}
+
+	return nil
+}
 
 // getMerkleTree atomically gets or creates a MerkleTree for a user
 // Returns a read-locked tree that must be unlocked by the caller
-func getMerkleTree(s *server, userID int64) (*lockedMerkleTree, error) {
+func getMerkleTree(s *server, userID int64) (*merkleTree, error) {
 	treesLock.RLock()
 	lockedTree, exists := trees[userID]
 	treesLock.RUnlock()
 
 	if exists {
 		lockedTree.lock.RLock()
-		lockedTree.lastSynced = time.Now()
 		return lockedTree, nil
 	}
 
 	treesLock.Lock()
 	defer treesLock.Unlock()
 
+	if err := checkMemoryUsage(); err != nil {
+		return nil, err
+	}
+
 	tree, err := s.buildUserFSTree(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	lockedTree = &lockedMerkleTree{
-		tree:       tree,
-		lastSynced: time.Now(),
-	}
+	lockedTree = newMerkleTree(tree)
 	trees[userID] = lockedTree
 
 	lockedTree.lock.RLock()
 	return lockedTree, nil
 }
 
-// getMerkleTreeForWrite atomically gets or creates a MerkleTree for a user for write operations
+// getMerkleTreeForWrite gets a MerkleTree for a user for write operations
+// Only operates on trees that exist in memory
 // Returns a write-locked tree that must be unlocked by the caller
-func getMerkleTreeForWrite(s *server, userID int64) (*lockedMerkleTree, error) {
-	// First check if tree exists in cache (read lock)
+func getMerkleTreeForWrite(s *server, userID int64) (*merkleTree, error) {
 	treesLock.RLock()
 	lockedTree, exists := trees[userID]
 	treesLock.RUnlock()
 
-	if exists {
-		// Tree exists, acquire write lock and return
-		lockedTree.lock.Lock()
-		lockedTree.lastSynced = time.Now()
-		return lockedTree, nil
+	if !exists {
+		return nil, fmt.Errorf("tree for user %d does not exist in memory", userID)
 	}
 
-	// Tree doesn't exist, need to create it (write lock)
-	treesLock.Lock()
-	defer treesLock.Unlock()
-
-	// Double-check after acquiring write lock
-	if lockedTree, exists := trees[userID]; exists {
-		lockedTree.lock.Lock()
-		return lockedTree, nil
-	}
-
-	// Build new tree
-	tree, err := s.buildUserFSTree(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create locked tree and store in cache
-	lockedTree = &lockedMerkleTree{
-		tree:       tree,
-		lastSynced: time.Now(),
-	}
-	trees[userID] = lockedTree
-
-	// Acquire write lock and return
 	lockedTree.lock.Lock()
 	return lockedTree, nil
 }
@@ -221,6 +222,10 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 		return nil, err
 	}
 	defer lockedTree.lock.RUnlock()
+
+	// Update lastRead timestamp
+	lockedTree.lastRead = time.Now()
+
 	return lockedTree.tree, nil
 }
 
@@ -402,6 +407,9 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 		return nil, fmt.Errorf("[user %d] no cached tree found: %v", req.UserId, err)
 	}
 	defer lockedTree.lock.RUnlock()
+
+	// Update lastRead timestamp
+	lockedTree.lastRead = time.Now()
 
 	tree := lockedTree.tree
 	response := &pb.PushRequest{
@@ -654,35 +662,37 @@ func integrityCheck(tree *pb.MerkleTree, rootPath string, userID int64) {
 	}
 }
 
-// purgeOldTrees removes trees that haven't been synced in 5 minutes
+// purgeOldTrees removes trees that haven't been read in 1 minute or synced in 5 minutes
 func purgeOldTrees() {
 	treesLock.Lock()
 	defer treesLock.Unlock()
 
-	cutoff := time.Now().Add(-5 * time.Minute)
+	readCutoff := time.Now().Add(-1 * time.Minute)
+	syncCutoff := time.Now().Add(-5 * time.Minute)
 	var toDelete []int64
 
 	for userID, lockedTree := range trees {
-		if lockedTree.lastSynced.Before(cutoff) {
+		// Purge if either lastRead is older than 1 minute OR lastSynced is older than 5 minutes
+		if lockedTree.lastRead.Before(readCutoff) || lockedTree.lastSynced.Before(syncCutoff) {
 			toDelete = append(toDelete, userID)
 		}
 	}
 
 	for _, userID := range toDelete {
 		delete(trees, userID)
-		log.Printf("Purged old tree for user %d", userID)
 	}
+	log.Printf("purged %d old trees, %d trees remaining", len(toDelete), len(trees))
 }
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	// Initialize global trees map
-	trees = make(map[int64]*lockedMerkleTree)
+	trees = make(map[int64]*merkleTree)
 
-	// Start cron job to purge old trees every 5 minutes
+	// Start background job to purge old trees every 30 seconds
 	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
+		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
 			purgeOldTrees()
