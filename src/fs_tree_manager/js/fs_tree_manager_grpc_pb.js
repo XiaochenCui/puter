@@ -17,17 +17,6 @@ function deserialize_fs_tree_manager_FetchReplicaRequest(buffer_arg) {
   return fs_tree_manager_pb.FetchReplicaRequest.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
-function serialize_fs_tree_manager_InitReplicaRequest(arg) {
-  if (!(arg instanceof fs_tree_manager_pb.InitReplicaRequest)) {
-    throw new Error('Expected argument of type fs_tree_manager.InitReplicaRequest');
-  }
-  return Buffer.from(arg.serializeBinary());
-}
-
-function deserialize_fs_tree_manager_InitReplicaRequest(buffer_arg) {
-  return fs_tree_manager_pb.InitReplicaRequest.deserializeBinary(new Uint8Array(buffer_arg));
-}
-
 function serialize_fs_tree_manager_MerkleTree(arg) {
   if (!(arg instanceof fs_tree_manager_pb.MerkleTree)) {
     throw new Error('Expected argument of type fs_tree_manager.MerkleTree');
@@ -177,18 +166,6 @@ purgeReplica: {
     responseType: google_protobuf_empty_pb.Empty,
     requestSerialize: serialize_fs_tree_manager_PurgeReplicaRequest,
     requestDeserialize: deserialize_fs_tree_manager_PurgeReplicaRequest,
-    responseSerialize: serialize_google_protobuf_Empty,
-    responseDeserialize: deserialize_google_protobuf_Empty,
-  },
-  // Initialize or rebuild a user's filesystem tree from the database
-initReplica: {
-    path: '/fs_tree_manager.FSTreeManager/InitReplica',
-    requestStream: false,
-    responseStream: false,
-    requestType: fs_tree_manager_pb.InitReplicaRequest,
-    responseType: google_protobuf_empty_pb.Empty,
-    requestSerialize: serialize_fs_tree_manager_InitReplicaRequest,
-    requestDeserialize: deserialize_fs_tree_manager_InitReplicaRequest,
     responseSerialize: serialize_google_protobuf_Empty,
     responseDeserialize: deserialize_google_protobuf_Empty,
   },

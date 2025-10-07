@@ -34,9 +34,6 @@ service FSTreeManager {
   // For any fs operations that cannot be handled by New/Remove APIs, just purge
   // the replica.
   rpc PurgeReplica(PurgeReplicaRequest) returns (google.protobuf.Empty);
-
-  // Initialize or rebuild a user's filesystem tree from the database
-  rpc InitReplica(InitReplicaRequest) returns (google.protobuf.Empty);
 }
 
 message FetchReplicaRequest { int64 user_id = 1; }
@@ -52,8 +49,6 @@ message RemoveFSEntryRequest {
 }
 
 message PurgeReplicaRequest { int64 user_id = 1; }
-
-message InitReplicaRequest { int64 user_id = 1; }
 
 message MerkleNode {
   // We use the stable uuid from fs_entry so pointers to it stay valid when this

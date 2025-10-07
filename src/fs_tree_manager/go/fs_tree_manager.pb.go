@@ -215,50 +215,6 @@ func (x *PurgeReplicaRequest) GetUserId() int64 {
 	return 0
 }
 
-type InitReplicaRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *InitReplicaRequest) Reset() {
-	*x = InitReplicaRequest{}
-	mi := &file_fs_tree_manager_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *InitReplicaRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*InitReplicaRequest) ProtoMessage() {}
-
-func (x *InitReplicaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use InitReplicaRequest.ProtoReflect.Descriptor instead.
-func (*InitReplicaRequest) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *InitReplicaRequest) GetUserId() int64 {
-	if x != nil {
-		return x.UserId
-	}
-	return 0
-}
-
 type MerkleNode struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// We use the stable uuid from fs_entry so pointers to it stay valid when this
@@ -278,7 +234,7 @@ type MerkleNode struct {
 
 func (x *MerkleNode) Reset() {
 	*x = MerkleNode{}
-	mi := &file_fs_tree_manager_proto_msgTypes[5]
+	mi := &file_fs_tree_manager_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -290,7 +246,7 @@ func (x *MerkleNode) String() string {
 func (*MerkleNode) ProtoMessage() {}
 
 func (x *MerkleNode) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[5]
+	mi := &file_fs_tree_manager_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -303,7 +259,7 @@ func (x *MerkleNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleNode.ProtoReflect.Descriptor instead.
 func (*MerkleNode) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{5}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *MerkleNode) GetUuid() string {
@@ -354,7 +310,7 @@ type MerkleTree struct {
 
 func (x *MerkleTree) Reset() {
 	*x = MerkleTree{}
-	mi := &file_fs_tree_manager_proto_msgTypes[6]
+	mi := &file_fs_tree_manager_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -366,7 +322,7 @@ func (x *MerkleTree) String() string {
 func (*MerkleTree) ProtoMessage() {}
 
 func (x *MerkleTree) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[6]
+	mi := &file_fs_tree_manager_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -379,7 +335,7 @@ func (x *MerkleTree) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleTree.ProtoReflect.Descriptor instead.
 func (*MerkleTree) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{6}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *MerkleTree) GetRootUuid() string {
@@ -405,7 +361,7 @@ type FSEntry struct {
 
 func (x *FSEntry) Reset() {
 	*x = FSEntry{}
-	mi := &file_fs_tree_manager_proto_msgTypes[7]
+	mi := &file_fs_tree_manager_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -417,7 +373,7 @@ func (x *FSEntry) String() string {
 func (*FSEntry) ProtoMessage() {}
 
 func (x *FSEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[7]
+	mi := &file_fs_tree_manager_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -430,7 +386,7 @@ func (x *FSEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSEntry.ProtoReflect.Descriptor instead.
 func (*FSEntry) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{7}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FSEntry) GetMetadata() *structpb.Struct {
@@ -450,7 +406,7 @@ type PullRequest struct {
 
 func (x *PullRequest) Reset() {
 	*x = PullRequest{}
-	mi := &file_fs_tree_manager_proto_msgTypes[8]
+	mi := &file_fs_tree_manager_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -462,7 +418,7 @@ func (x *PullRequest) String() string {
 func (*PullRequest) ProtoMessage() {}
 
 func (x *PullRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[8]
+	mi := &file_fs_tree_manager_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -475,7 +431,7 @@ func (x *PullRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullRequest.ProtoReflect.Descriptor instead.
 func (*PullRequest) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{8}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PullRequest) GetUserId() int64 {
@@ -502,7 +458,7 @@ type PullRequestItem struct {
 
 func (x *PullRequestItem) Reset() {
 	*x = PullRequestItem{}
-	mi := &file_fs_tree_manager_proto_msgTypes[9]
+	mi := &file_fs_tree_manager_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +470,7 @@ func (x *PullRequestItem) String() string {
 func (*PullRequestItem) ProtoMessage() {}
 
 func (x *PullRequestItem) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[9]
+	mi := &file_fs_tree_manager_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +483,7 @@ func (x *PullRequestItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullRequestItem.ProtoReflect.Descriptor instead.
 func (*PullRequestItem) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{9}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PullRequestItem) GetUuid() string {
@@ -554,7 +510,7 @@ type PushRequest struct {
 
 func (x *PushRequest) Reset() {
 	*x = PushRequest{}
-	mi := &file_fs_tree_manager_proto_msgTypes[10]
+	mi := &file_fs_tree_manager_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +522,7 @@ func (x *PushRequest) String() string {
 func (*PushRequest) ProtoMessage() {}
 
 func (x *PushRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[10]
+	mi := &file_fs_tree_manager_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +535,7 @@ func (x *PushRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushRequest.ProtoReflect.Descriptor instead.
 func (*PushRequest) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{10}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PushRequest) GetUserId() int64 {
@@ -608,7 +564,7 @@ type PushRequestItem struct {
 
 func (x *PushRequestItem) Reset() {
 	*x = PushRequestItem{}
-	mi := &file_fs_tree_manager_proto_msgTypes[11]
+	mi := &file_fs_tree_manager_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -620,7 +576,7 @@ func (x *PushRequestItem) String() string {
 func (*PushRequestItem) ProtoMessage() {}
 
 func (x *PushRequestItem) ProtoReflect() protoreflect.Message {
-	mi := &file_fs_tree_manager_proto_msgTypes[11]
+	mi := &file_fs_tree_manager_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -633,7 +589,7 @@ func (x *PushRequestItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushRequestItem.ProtoReflect.Descriptor instead.
 func (*PushRequestItem) Descriptor() ([]byte, []int) {
-	return file_fs_tree_manager_proto_rawDescGZIP(), []int{11}
+	return file_fs_tree_manager_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PushRequestItem) GetUuid() string {
@@ -678,8 +634,6 @@ const file_fs_tree_manager_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x12\n" +
 	"\x04uuid\x18\x02 \x01(\tR\x04uuid\".\n" +
 	"\x13PurgeReplicaRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"-\n" +
-	"\x12InitReplicaRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xbe\x01\n" +
 	"\n" +
 	"MerkleNode\x12\x12\n" +
@@ -715,15 +669,14 @@ const file_fs_tree_manager_proto_rawDesc = "" +
 	"\vmerkle_hash\x18\x02 \x01(\tR\n" +
 	"merkleHash\x123\n" +
 	"\bfs_entry\x18\x03 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\x12<\n" +
-	"\bchildren\x18\x04 \x03(\v2 .fs_tree_manager.PushRequestItemR\bchildren2\xde\x03\n" +
+	"\bchildren\x18\x04 \x03(\v2 .fs_tree_manager.PushRequestItemR\bchildren2\x92\x03\n" +
 	"\rFSTreeManager\x12Q\n" +
 	"\fFetchReplica\x12$.fs_tree_manager.FetchReplicaRequest\x1a\x1b.fs_tree_manager.MerkleTree\x12F\n" +
 	"\bPullDiff\x12\x1c.fs_tree_manager.PullRequest\x1a\x1c.fs_tree_manager.PushRequest\x12H\n" +
 	"\n" +
 	"NewFSEntry\x12\".fs_tree_manager.NewFSEntryRequest\x1a\x16.google.protobuf.Empty\x12N\n" +
 	"\rRemoveFSEntry\x12%.fs_tree_manager.RemoveFSEntryRequest\x1a\x16.google.protobuf.Empty\x12L\n" +
-	"\fPurgeReplica\x12$.fs_tree_manager.PurgeReplicaRequest\x1a\x16.google.protobuf.Empty\x12J\n" +
-	"\vInitReplica\x12#.fs_tree_manager.InitReplicaRequest\x1a\x16.google.protobuf.EmptyB\"Z github.com/puter/fs_tree_managerb\x06proto3"
+	"\fPurgeReplica\x12$.fs_tree_manager.PurgeReplicaRequest\x1a\x16.google.protobuf.EmptyB\"Z github.com/puter/fs_tree_managerb\x06proto3"
 
 var (
 	file_fs_tree_manager_proto_rawDescOnce sync.Once
@@ -737,48 +690,45 @@ func file_fs_tree_manager_proto_rawDescGZIP() []byte {
 	return file_fs_tree_manager_proto_rawDescData
 }
 
-var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_fs_tree_manager_proto_goTypes = []any{
 	(*FetchReplicaRequest)(nil),  // 0: fs_tree_manager.FetchReplicaRequest
 	(*NewFSEntryRequest)(nil),    // 1: fs_tree_manager.NewFSEntryRequest
 	(*RemoveFSEntryRequest)(nil), // 2: fs_tree_manager.RemoveFSEntryRequest
 	(*PurgeReplicaRequest)(nil),  // 3: fs_tree_manager.PurgeReplicaRequest
-	(*InitReplicaRequest)(nil),   // 4: fs_tree_manager.InitReplicaRequest
-	(*MerkleNode)(nil),           // 5: fs_tree_manager.MerkleNode
-	(*MerkleTree)(nil),           // 6: fs_tree_manager.MerkleTree
-	(*FSEntry)(nil),              // 7: fs_tree_manager.FSEntry
-	(*PullRequest)(nil),          // 8: fs_tree_manager.PullRequest
-	(*PullRequestItem)(nil),      // 9: fs_tree_manager.PullRequestItem
-	(*PushRequest)(nil),          // 10: fs_tree_manager.PushRequest
-	(*PushRequestItem)(nil),      // 11: fs_tree_manager.PushRequestItem
-	nil,                          // 12: fs_tree_manager.MerkleTree.NodesEntry
-	(*structpb.Struct)(nil),      // 13: google.protobuf.Struct
-	(*emptypb.Empty)(nil),        // 14: google.protobuf.Empty
+	(*MerkleNode)(nil),           // 4: fs_tree_manager.MerkleNode
+	(*MerkleTree)(nil),           // 5: fs_tree_manager.MerkleTree
+	(*FSEntry)(nil),              // 6: fs_tree_manager.FSEntry
+	(*PullRequest)(nil),          // 7: fs_tree_manager.PullRequest
+	(*PullRequestItem)(nil),      // 8: fs_tree_manager.PullRequestItem
+	(*PushRequest)(nil),          // 9: fs_tree_manager.PushRequest
+	(*PushRequestItem)(nil),      // 10: fs_tree_manager.PushRequestItem
+	nil,                          // 11: fs_tree_manager.MerkleTree.NodesEntry
+	(*structpb.Struct)(nil),      // 12: google.protobuf.Struct
+	(*emptypb.Empty)(nil),        // 13: google.protobuf.Empty
 }
 var file_fs_tree_manager_proto_depIdxs = []int32{
-	7,  // 0: fs_tree_manager.NewFSEntryRequest.fs_entry:type_name -> fs_tree_manager.FSEntry
-	7,  // 1: fs_tree_manager.MerkleNode.fs_entry:type_name -> fs_tree_manager.FSEntry
-	12, // 2: fs_tree_manager.MerkleTree.nodes:type_name -> fs_tree_manager.MerkleTree.NodesEntry
-	13, // 3: fs_tree_manager.FSEntry.metadata:type_name -> google.protobuf.Struct
-	9,  // 4: fs_tree_manager.PullRequest.pull_request:type_name -> fs_tree_manager.PullRequestItem
-	11, // 5: fs_tree_manager.PushRequest.push_request:type_name -> fs_tree_manager.PushRequestItem
-	7,  // 6: fs_tree_manager.PushRequestItem.fs_entry:type_name -> fs_tree_manager.FSEntry
-	11, // 7: fs_tree_manager.PushRequestItem.children:type_name -> fs_tree_manager.PushRequestItem
-	5,  // 8: fs_tree_manager.MerkleTree.NodesEntry.value:type_name -> fs_tree_manager.MerkleNode
+	6,  // 0: fs_tree_manager.NewFSEntryRequest.fs_entry:type_name -> fs_tree_manager.FSEntry
+	6,  // 1: fs_tree_manager.MerkleNode.fs_entry:type_name -> fs_tree_manager.FSEntry
+	11, // 2: fs_tree_manager.MerkleTree.nodes:type_name -> fs_tree_manager.MerkleTree.NodesEntry
+	12, // 3: fs_tree_manager.FSEntry.metadata:type_name -> google.protobuf.Struct
+	8,  // 4: fs_tree_manager.PullRequest.pull_request:type_name -> fs_tree_manager.PullRequestItem
+	10, // 5: fs_tree_manager.PushRequest.push_request:type_name -> fs_tree_manager.PushRequestItem
+	6,  // 6: fs_tree_manager.PushRequestItem.fs_entry:type_name -> fs_tree_manager.FSEntry
+	10, // 7: fs_tree_manager.PushRequestItem.children:type_name -> fs_tree_manager.PushRequestItem
+	4,  // 8: fs_tree_manager.MerkleTree.NodesEntry.value:type_name -> fs_tree_manager.MerkleNode
 	0,  // 9: fs_tree_manager.FSTreeManager.FetchReplica:input_type -> fs_tree_manager.FetchReplicaRequest
-	8,  // 10: fs_tree_manager.FSTreeManager.PullDiff:input_type -> fs_tree_manager.PullRequest
+	7,  // 10: fs_tree_manager.FSTreeManager.PullDiff:input_type -> fs_tree_manager.PullRequest
 	1,  // 11: fs_tree_manager.FSTreeManager.NewFSEntry:input_type -> fs_tree_manager.NewFSEntryRequest
 	2,  // 12: fs_tree_manager.FSTreeManager.RemoveFSEntry:input_type -> fs_tree_manager.RemoveFSEntryRequest
 	3,  // 13: fs_tree_manager.FSTreeManager.PurgeReplica:input_type -> fs_tree_manager.PurgeReplicaRequest
-	4,  // 14: fs_tree_manager.FSTreeManager.InitReplica:input_type -> fs_tree_manager.InitReplicaRequest
-	6,  // 15: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.MerkleTree
-	10, // 16: fs_tree_manager.FSTreeManager.PullDiff:output_type -> fs_tree_manager.PushRequest
-	14, // 17: fs_tree_manager.FSTreeManager.NewFSEntry:output_type -> google.protobuf.Empty
-	14, // 18: fs_tree_manager.FSTreeManager.RemoveFSEntry:output_type -> google.protobuf.Empty
-	14, // 19: fs_tree_manager.FSTreeManager.PurgeReplica:output_type -> google.protobuf.Empty
-	14, // 20: fs_tree_manager.FSTreeManager.InitReplica:output_type -> google.protobuf.Empty
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
+	5,  // 14: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.MerkleTree
+	9,  // 15: fs_tree_manager.FSTreeManager.PullDiff:output_type -> fs_tree_manager.PushRequest
+	13, // 16: fs_tree_manager.FSTreeManager.NewFSEntry:output_type -> google.protobuf.Empty
+	13, // 17: fs_tree_manager.FSTreeManager.RemoveFSEntry:output_type -> google.protobuf.Empty
+	13, // 18: fs_tree_manager.FSTreeManager.PurgeReplica:output_type -> google.protobuf.Empty
+	14, // [14:19] is the sub-list for method output_type
+	9,  // [9:14] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -795,7 +745,7 @@ func file_fs_tree_manager_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fs_tree_manager_proto_rawDesc), len(file_fs_tree_manager_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
