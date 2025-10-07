@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"path/filepath"
 	"runtime"
@@ -48,7 +49,7 @@ var (
 	treesLock sync.RWMutex
 
 	// Make FS-Tree Manager unstable and laggy.
-	debug = true
+	chaos = false
 
 	// Memory threshold in bytes (2GB)
 	memoryThresholdBytes int64 = 2 * 1024 * 1024 * 1024
@@ -213,7 +214,7 @@ func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
 
 // FetchReplica implements the FSTreeManager service
 func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) (*pb.MerkleTree, error) {
-	if debug {
+	if chaos {
 		time.Sleep(10 * time.Second)
 	}
 
@@ -231,6 +232,12 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 
 // NewFSEntry implements the FSTreeManager service
 func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*emptypb.Empty, error) {
+	if chaos {
+		if err := mayCrash(); err != nil {
+			return nil, err
+		}
+	}
+
 	userID := req.UserId
 	fsEntry := req.FsEntry
 
@@ -340,6 +347,12 @@ func pathToUUID(path string, nodes map[string]*pb.MerkleNode) (UUID string, err 
 
 // RemoveFSEntry implements the FSTreeManager service
 func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest) (*emptypb.Empty, error) {
+	if chaos {
+		if err := mayCrash(); err != nil {
+			return nil, err
+		}
+	}
+
 	userID := req.UserId
 	uid := req.Uuid
 	if uid == "" {
@@ -384,6 +397,12 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 }
 
 func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
+	if chaos {
+		if err := mayCrash(); err != nil {
+			return nil, err
+		}
+	}
+
 	lockedTree, err := getMerkleTree(s, req.UserId)
 	if err != nil {
 		return nil, fmt.Errorf("[user %d] no cached tree found: %v", req.UserId, err)
@@ -444,6 +463,18 @@ func (s *server) PurgeReplica(ctx context.Context, req *pb.PurgeReplicaRequest) 
 	treesLock.Unlock()
 
 	return &emptypb.Empty{}, nil
+}
+
+func mayCrash() error {
+	v := rand.Intn(100)
+	if v < 10 {
+		panic("crash")
+	} else if v < 30 {
+		time.Sleep(10 * time.Second)
+	} else if v < 60 {
+		return fmt.Errorf("error")
+	}
+	return nil
 }
 
 const sqliteDBPath = "/var/puter/puter-database.sqlite"
