@@ -167,16 +167,33 @@ const readdir = async function (...args) {
 
 Just a standalone service that manages the FS-Tree.
 
-TODO: Add more details.
+- It only creates a new in-memory FS tree when a user requests it and memory usage is below the threshold.
+- It periodically purges FS trees that haven't been synced for a while.
+- It periodically purges FS trees that haven't been accessed for a while.
 
 ### FS Hooks
 
 #### Hooks in Puter Backend
 
-- [X] create file/dir (`fs.create.*` event) (code: `src/backend/src/services/WSPushService.js`)
+- [X] mkdir (`fs.create.*` event) (code: `src/backend/src/services/WSPushService.js`)
+- [ ] new file
+- [ ] write file
+- [X] rename (code: `src/backend/src/routers/filesystem_api/rename.js`)
 - [X] move (`fs.move.*` event) (code: `src/backend/src/services/WSPushService.js`)
 - [X] delete file/dir (code: `src/backend/src/filesystem/hl_operations/hl_remove.js`)
-- [X] rename (code: `src/backend/src/routers/filesystem_api/rename.js`)
+
+#### Hooks in Puter-JS
+
+- [X] mkdir (code: `src/puter-js/src/modules/FileSystem/operations/mkdir.js`)
+- [ ] new file
+- [ ] write file
+- [X] rename (code: `src/puter-js/src/modules/FileSystem/operations/rename.js`)
+- [ ] move
+- [ ] delete file/dir
+
+- [X] stat (code: `src/puter-js/src/modules/FileSystem/operations/stat.js`)
+- [X] readdir (code: `src/puter-js/src/modules/FileSystem/operations/readdir.js`)
+- [ ] search
 
 ### Adaptation to the Existing Codebase
 

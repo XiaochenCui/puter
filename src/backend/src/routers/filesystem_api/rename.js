@@ -198,8 +198,13 @@ module.exports = eggspress('/rename', {
             // NB: user_id only exists in raw fsentry
             const user_id = fsentry.user_id;
             const uuid = fsentry.uuid;
-            const new_fsentry = await subject.getSafeEntry();
             await sendFsRemove(user_id, uuid);
+
+            const new_fsentry = await subject.getSafeEntry();
+            // for unknown reasons, the name and path are incorrect in the new_fsentry
+            new_fsentry.name = return_obj.name;
+            new_fsentry.path = return_obj.path;
+
             await sendFsNew(user_id, new_fsentry);
         } catch( e ) {
             console.error(e);

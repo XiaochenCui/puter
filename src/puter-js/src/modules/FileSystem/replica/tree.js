@@ -234,6 +234,36 @@ class FSTree {
 
         await this.recalculateAncestorHashes(fs_entry.uid);
     }
+
+    /**
+     * Rename a file or directory in the tree
+     * @param {string} uuid - UUID of the node to rename
+     * @param {string} new_name - New name for the node
+     */
+    async rename(uuid, new_name) {
+        const node = this.findNodeByUUID(uuid);
+        if ( !node ) {
+            throw new Error(`Node not found: ${uuid}`);
+        }
+
+        if ( !node.fs_entry ) {
+            throw new Error(`Node has no fs_entry: ${uuid}`);
+        }
+
+        // Update the name in the fs_entry
+        const old_name = node.fs_entry.name;
+        node.fs_entry.name = new_name;
+
+        // Update the path by replacing the last part with the new name
+        const old_path = node.fs_entry.path;
+        const path_parts = old_path.split('/');
+        path_parts[path_parts.length - 1] = new_name;
+        const new_path = path_parts.join('/');
+        node.fs_entry.path = new_path;
+
+        // Recalculate Merkle hashes for this node and all its ancestors
+        await this.recalculateAncestorHashes(uuid);
+    }
 }
 
 export default FSTree;
