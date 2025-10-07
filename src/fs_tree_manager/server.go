@@ -361,6 +361,10 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		return nil, fmt.Errorf("entry not found: %s", uid)
 	}
 
+	// Collect all descendants to remove
+	descendants := make(map[string]bool)
+	allDescendants(uid, tree.Nodes, descendants)
+
 	// Remove the node from its parent's children list
 	if targetNode.ParentUuid != "" {
 		if parentNode, parentExists := tree.Nodes[targetNode.ParentUuid]; parentExists {
@@ -371,6 +375,11 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 				}
 			}
 		}
+	}
+
+	// Remove all descendants from the tree
+	for descendantUUID := range descendants {
+		delete(tree.Nodes, descendantUUID)
 	}
 
 	// Remove the node from the tree
@@ -389,6 +398,18 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+func allDescendants(nodeUUID string, nodes map[string]*pb.MerkleNode, descendants map[string]bool) {
+	node, exists := nodes[nodeUUID]
+	if !exists {
+		return
+	}
+
+	for _, childUUID := range node.ChildrenUuids {
+		descendants[childUUID] = true
+		allDescendants(childUUID, nodes, descendants)
+	}
 }
 
 func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {

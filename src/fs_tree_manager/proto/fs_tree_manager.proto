@@ -16,16 +16,20 @@ option go_package = "github.com/puter/fs_tree_manager";
 // - user_id is included in the fs events listener where user_name/user_uuid are
 // not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
+//
+// We provide simple {New/Remove}FSEntry APIs as a straightforward way to
+// accommodate the wide variety of file system operations. These APIs should
+// always results in an coherent MerkleTree.
 service FSTreeManager {
   rpc FetchReplica(FetchReplicaRequest) returns (MerkleTree);
   rpc PullDiff(PullRequest) returns (PushRequest);
 
-  // We provide simple New/Remove APIs as a straightforward way to accommodate
-  // the wide variety of file system operations.
-  //
-  // For simplicity, these APIs do not automatically update parent or child
-  // FSEntries.
+  // Insert a new FSEntry into the tree, update its parent's children list as
+  // well.
   rpc NewFSEntry(NewFSEntryRequest) returns (google.protobuf.Empty);
+
+  // Remove an FSEntry (and all its descendants) from the tree, update its
+  // parent's children list as well.
   rpc RemoveFSEntry(RemoveFSEntryRequest) returns (google.protobuf.Empty);
 
   // For any fs operations that cannot be handled by New/Remove APIs, just purge

@@ -104,6 +104,10 @@ function deserialize_google_protobuf_Empty(buffer_arg) {
 // - user_id is included in the fs events listener where user_name/user_uuid are
 // not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
+//
+// We provide simple {New/Remove}FSEntry APIs as a straightforward way to
+// accommodate the wide variety of file system operations. These APIs should
+// always results in an coherent MerkleTree.
 var FSTreeManagerService = exports.FSTreeManagerService = {
   fetchReplica: {
     path: '/fs_tree_manager.FSTreeManager/FetchReplica',
@@ -127,11 +131,8 @@ var FSTreeManagerService = exports.FSTreeManagerService = {
     responseSerialize: serialize_fs_tree_manager_PushRequest,
     responseDeserialize: deserialize_fs_tree_manager_PushRequest,
   },
-  // We provide simple New/Remove APIs as a straightforward way to accommodate
-// the wide variety of file system operations.
-//
-// For simplicity, these APIs do not automatically update parent or child
-// FSEntries.
+  // Insert a new FSEntry into the tree, update its parent's children list as
+// well.
 newFSEntry: {
     path: '/fs_tree_manager.FSTreeManager/NewFSEntry',
     requestStream: false,
@@ -143,7 +144,9 @@ newFSEntry: {
     responseSerialize: serialize_google_protobuf_Empty,
     responseDeserialize: deserialize_google_protobuf_Empty,
   },
-  removeFSEntry: {
+  // Remove an FSEntry (and all its descendants) from the tree, update its
+// parent's children list as well.
+removeFSEntry: {
     path: '/fs_tree_manager.FSTreeManager/RemoveFSEntry',
     requestStream: false,
     responseStream: false,

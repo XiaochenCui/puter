@@ -40,15 +40,18 @@ const (
 // - user_id is included in the fs events listener where user_name/user_uuid are
 // not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
+//
+// We provide simple {New/Remove}FSEntry APIs as a straightforward way to
+// accommodate the wide variety of file system operations. These APIs should
+// always results in an coherent MerkleTree.
 type FSTreeManagerClient interface {
 	FetchReplica(ctx context.Context, in *FetchReplicaRequest, opts ...grpc.CallOption) (*MerkleTree, error)
 	PullDiff(ctx context.Context, in *PullRequest, opts ...grpc.CallOption) (*PushRequest, error)
-	// We provide simple New/Remove APIs as a straightforward way to accommodate
-	// the wide variety of file system operations.
-	//
-	// For simplicity, these APIs do not automatically update parent or child
-	// FSEntries.
+	// Insert a new FSEntry into the tree, update its parent's children list as
+	// well.
 	NewFSEntry(ctx context.Context, in *NewFSEntryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Remove an FSEntry (and all its descendants) from the tree, update its
+	// parent's children list as well.
 	RemoveFSEntry(ctx context.Context, in *RemoveFSEntryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// For any fs operations that cannot be handled by New/Remove APIs, just purge
 	// the replica.
@@ -126,15 +129,18 @@ func (c *fSTreeManagerClient) PurgeReplica(ctx context.Context, in *PurgeReplica
 // - user_id is included in the fs events listener where user_name/user_uuid are
 // not available
 // (https://github.com/HeyPuter/puter/blob/847b3a07a4ec59e724063f460a4c26cb62b04d42/src/backend/src/services/WSPushService.js#L165-L166)
+//
+// We provide simple {New/Remove}FSEntry APIs as a straightforward way to
+// accommodate the wide variety of file system operations. These APIs should
+// always results in an coherent MerkleTree.
 type FSTreeManagerServer interface {
 	FetchReplica(context.Context, *FetchReplicaRequest) (*MerkleTree, error)
 	PullDiff(context.Context, *PullRequest) (*PushRequest, error)
-	// We provide simple New/Remove APIs as a straightforward way to accommodate
-	// the wide variety of file system operations.
-	//
-	// For simplicity, these APIs do not automatically update parent or child
-	// FSEntries.
+	// Insert a new FSEntry into the tree, update its parent's children list as
+	// well.
 	NewFSEntry(context.Context, *NewFSEntryRequest) (*emptypb.Empty, error)
+	// Remove an FSEntry (and all its descendants) from the tree, update its
+	// parent's children list as well.
 	RemoveFSEntry(context.Context, *RemoveFSEntryRequest) (*emptypb.Empty, error)
 	// For any fs operations that cannot be handled by New/Remove APIs, just purge
 	// the replica.
