@@ -227,10 +227,12 @@ type MerkleNode struct {
 	//  1. JS is error prone when handling uint64/bigint and it's time-consuming to
 	//     troubleshoot.
 	//  2. It's easier to come up with a consistent order on string type.
-	MerkleHash    string   `protobuf:"bytes,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
-	ChildrenUuids []string `protobuf:"bytes,3,rep,name=children_uuids,json=childrenUuids,proto3" json:"children_uuids,omitempty"`
-	ParentUuid    string   `protobuf:"bytes,4,opt,name=parent_uuid,json=parentUuid,proto3" json:"parent_uuid,omitempty"`
-	FsEntry       *FSEntry `protobuf:"bytes,5,opt,name=fs_entry,json=fsEntry,proto3" json:"fs_entry,omitempty"`
+	MerkleHash string `protobuf:"bytes,2,opt,name=merkle_hash,json=merkleHash,proto3" json:"merkle_hash,omitempty"`
+	// Use map to avoid duplicate children uuids. The value doesn't matter, it's
+	// there just because protobuf doesn't have built-in set type.
+	ChildrenUuids map[string]bool `protobuf:"bytes,3,rep,name=children_uuids,json=childrenUuids,proto3" json:"children_uuids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	ParentUuid    string          `protobuf:"bytes,4,opt,name=parent_uuid,json=parentUuid,proto3" json:"parent_uuid,omitempty"`
+	FsEntry       *FSEntry        `protobuf:"bytes,5,opt,name=fs_entry,json=fsEntry,proto3" json:"fs_entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -279,7 +281,7 @@ func (x *MerkleNode) GetMerkleHash() string {
 	return ""
 }
 
-func (x *MerkleNode) GetChildrenUuids() []string {
+func (x *MerkleNode) GetChildrenUuids() map[string]bool {
 	if x != nil {
 		return x.ChildrenUuids
 	}
@@ -637,16 +639,19 @@ const file_fs_tree_manager_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x12\n" +
 	"\x04uuid\x18\x02 \x01(\tR\x04uuid\".\n" +
 	"\x13PurgeReplicaRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xbe\x01\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xb0\x02\n" +
 	"\n" +
 	"MerkleNode\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +
 	"\vmerkle_hash\x18\x02 \x01(\tR\n" +
-	"merkleHash\x12%\n" +
-	"\x0echildren_uuids\x18\x03 \x03(\tR\rchildrenUuids\x12\x1f\n" +
+	"merkleHash\x12U\n" +
+	"\x0echildren_uuids\x18\x03 \x03(\v2..fs_tree_manager.MerkleNode.ChildrenUuidsEntryR\rchildrenUuids\x12\x1f\n" +
 	"\vparent_uuid\x18\x04 \x01(\tR\n" +
 	"parentUuid\x123\n" +
-	"\bfs_entry\x18\x05 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\"\xbe\x01\n" +
+	"\bfs_entry\x18\x05 \x01(\v2\x18.fs_tree_manager.FSEntryR\afsEntry\x1a@\n" +
+	"\x12ChildrenUuidsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"\xbe\x01\n" +
 	"\n" +
 	"MerkleTree\x12\x1b\n" +
 	"\troot_uuid\x18\x01 \x01(\tR\brootUuid\x12<\n" +
@@ -693,7 +698,7 @@ func file_fs_tree_manager_proto_rawDescGZIP() []byte {
 	return file_fs_tree_manager_proto_rawDescData
 }
 
-var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_fs_tree_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_fs_tree_manager_proto_goTypes = []any{
 	(*FetchReplicaRequest)(nil),  // 0: fs_tree_manager.FetchReplicaRequest
 	(*NewFSEntryRequest)(nil),    // 1: fs_tree_manager.NewFSEntryRequest
@@ -706,35 +711,37 @@ var file_fs_tree_manager_proto_goTypes = []any{
 	(*PullRequestItem)(nil),      // 8: fs_tree_manager.PullRequestItem
 	(*PushRequest)(nil),          // 9: fs_tree_manager.PushRequest
 	(*PushRequestItem)(nil),      // 10: fs_tree_manager.PushRequestItem
-	nil,                          // 11: fs_tree_manager.MerkleTree.NodesEntry
-	(*structpb.Struct)(nil),      // 12: google.protobuf.Struct
-	(*emptypb.Empty)(nil),        // 13: google.protobuf.Empty
+	nil,                          // 11: fs_tree_manager.MerkleNode.ChildrenUuidsEntry
+	nil,                          // 12: fs_tree_manager.MerkleTree.NodesEntry
+	(*structpb.Struct)(nil),      // 13: google.protobuf.Struct
+	(*emptypb.Empty)(nil),        // 14: google.protobuf.Empty
 }
 var file_fs_tree_manager_proto_depIdxs = []int32{
 	6,  // 0: fs_tree_manager.NewFSEntryRequest.fs_entry:type_name -> fs_tree_manager.FSEntry
-	6,  // 1: fs_tree_manager.MerkleNode.fs_entry:type_name -> fs_tree_manager.FSEntry
-	11, // 2: fs_tree_manager.MerkleTree.nodes:type_name -> fs_tree_manager.MerkleTree.NodesEntry
-	12, // 3: fs_tree_manager.FSEntry.metadata:type_name -> google.protobuf.Struct
-	8,  // 4: fs_tree_manager.PullRequest.pull_request:type_name -> fs_tree_manager.PullRequestItem
-	10, // 5: fs_tree_manager.PushRequest.push_request:type_name -> fs_tree_manager.PushRequestItem
-	6,  // 6: fs_tree_manager.PushRequestItem.fs_entry:type_name -> fs_tree_manager.FSEntry
-	10, // 7: fs_tree_manager.PushRequestItem.children:type_name -> fs_tree_manager.PushRequestItem
-	4,  // 8: fs_tree_manager.MerkleTree.NodesEntry.value:type_name -> fs_tree_manager.MerkleNode
-	0,  // 9: fs_tree_manager.FSTreeManager.FetchReplica:input_type -> fs_tree_manager.FetchReplicaRequest
-	7,  // 10: fs_tree_manager.FSTreeManager.PullDiff:input_type -> fs_tree_manager.PullRequest
-	1,  // 11: fs_tree_manager.FSTreeManager.NewFSEntry:input_type -> fs_tree_manager.NewFSEntryRequest
-	2,  // 12: fs_tree_manager.FSTreeManager.RemoveFSEntry:input_type -> fs_tree_manager.RemoveFSEntryRequest
-	3,  // 13: fs_tree_manager.FSTreeManager.PurgeReplica:input_type -> fs_tree_manager.PurgeReplicaRequest
-	5,  // 14: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.MerkleTree
-	9,  // 15: fs_tree_manager.FSTreeManager.PullDiff:output_type -> fs_tree_manager.PushRequest
-	13, // 16: fs_tree_manager.FSTreeManager.NewFSEntry:output_type -> google.protobuf.Empty
-	13, // 17: fs_tree_manager.FSTreeManager.RemoveFSEntry:output_type -> google.protobuf.Empty
-	13, // 18: fs_tree_manager.FSTreeManager.PurgeReplica:output_type -> google.protobuf.Empty
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	11, // 1: fs_tree_manager.MerkleNode.children_uuids:type_name -> fs_tree_manager.MerkleNode.ChildrenUuidsEntry
+	6,  // 2: fs_tree_manager.MerkleNode.fs_entry:type_name -> fs_tree_manager.FSEntry
+	12, // 3: fs_tree_manager.MerkleTree.nodes:type_name -> fs_tree_manager.MerkleTree.NodesEntry
+	13, // 4: fs_tree_manager.FSEntry.metadata:type_name -> google.protobuf.Struct
+	8,  // 5: fs_tree_manager.PullRequest.pull_request:type_name -> fs_tree_manager.PullRequestItem
+	10, // 6: fs_tree_manager.PushRequest.push_request:type_name -> fs_tree_manager.PushRequestItem
+	6,  // 7: fs_tree_manager.PushRequestItem.fs_entry:type_name -> fs_tree_manager.FSEntry
+	10, // 8: fs_tree_manager.PushRequestItem.children:type_name -> fs_tree_manager.PushRequestItem
+	4,  // 9: fs_tree_manager.MerkleTree.NodesEntry.value:type_name -> fs_tree_manager.MerkleNode
+	0,  // 10: fs_tree_manager.FSTreeManager.FetchReplica:input_type -> fs_tree_manager.FetchReplicaRequest
+	7,  // 11: fs_tree_manager.FSTreeManager.PullDiff:input_type -> fs_tree_manager.PullRequest
+	1,  // 12: fs_tree_manager.FSTreeManager.NewFSEntry:input_type -> fs_tree_manager.NewFSEntryRequest
+	2,  // 13: fs_tree_manager.FSTreeManager.RemoveFSEntry:input_type -> fs_tree_manager.RemoveFSEntryRequest
+	3,  // 14: fs_tree_manager.FSTreeManager.PurgeReplica:input_type -> fs_tree_manager.PurgeReplicaRequest
+	5,  // 15: fs_tree_manager.FSTreeManager.FetchReplica:output_type -> fs_tree_manager.MerkleTree
+	9,  // 16: fs_tree_manager.FSTreeManager.PullDiff:output_type -> fs_tree_manager.PushRequest
+	14, // 17: fs_tree_manager.FSTreeManager.NewFSEntry:output_type -> google.protobuf.Empty
+	14, // 18: fs_tree_manager.FSTreeManager.RemoveFSEntry:output_type -> google.protobuf.Empty
+	14, // 19: fs_tree_manager.FSTreeManager.PurgeReplica:output_type -> google.protobuf.Empty
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_fs_tree_manager_proto_init() }
@@ -748,7 +755,7 @@ func file_fs_tree_manager_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fs_tree_manager_proto_rawDesc), len(file_fs_tree_manager_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

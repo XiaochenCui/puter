@@ -175,6 +175,8 @@ Just a standalone service that manages the FS-Tree.
 
 #### Hooks in Puter Backend
 
+NB: Put hooks in WSPushService may cause duplicate events, remove them in the future.
+
 - [X] mkdir (`fs.create.*` event) (code: `src/backend/src/services/WSPushService.js`)
 - [X] new file
   - code: `src/backend/src/filesystem/hl_operations/hl_mkdir.js`

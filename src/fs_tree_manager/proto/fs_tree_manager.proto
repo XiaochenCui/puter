@@ -66,7 +66,10 @@ message MerkleNode {
   // 2. It's easier to come up with a consistent order on string type.
   string merkle_hash = 2;
 
-  repeated string children_uuids = 3;
+  // Use map to avoid duplicate children uuids. The value doesn't matter, it's
+  // there just because protobuf doesn't have built-in set type.
+  map<string, bool> children_uuids = 3;
+
   string parent_uuid = 4;
 
   FSEntry fs_entry = 5;

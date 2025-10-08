@@ -131,7 +131,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.fs_tree_manager.MerkleNode = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, proto.fs_tree_manager.MerkleNode.repeatedFields_, null);
+  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
 goog.inherits(proto.fs_tree_manager.MerkleNode, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -869,13 +869,6 @@ proto.fs_tree_manager.PurgeReplicaRequest.prototype.setUserId = function(value) 
 
 
 
-/**
- * List of repeated fields within this message type.
- * @private {!Array<number>}
- * @const
- */
-proto.fs_tree_manager.MerkleNode.repeatedFields_ = [3];
-
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -909,7 +902,7 @@ proto.fs_tree_manager.MerkleNode.toObject = function(includeInstance, msg) {
   var f, obj = {
     uuid: jspb.Message.getFieldWithDefault(msg, 1, ""),
     merkleHash: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    childrenUuidsList: (f = jspb.Message.getRepeatedField(msg, 3)) == null ? undefined : f,
+    childrenUuidsMap: (f = msg.getChildrenUuidsMap()) ? f.toObject(includeInstance, undefined) : [],
     parentUuid: jspb.Message.getFieldWithDefault(msg, 4, ""),
     fsEntry: (f = msg.getFsEntry()) && proto.fs_tree_manager.FSEntry.toObject(includeInstance, f)
   };
@@ -957,8 +950,10 @@ proto.fs_tree_manager.MerkleNode.deserializeBinaryFromReader = function(msg, rea
       msg.setMerkleHash(value);
       break;
     case 3:
-      var value = /** @type {string} */ (reader.readString());
-      msg.addChildrenUuids(value);
+      var value = msg.getChildrenUuidsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readBool, null, "", false);
+         });
       break;
     case 4:
       var value = /** @type {string} */ (reader.readString());
@@ -1012,12 +1007,9 @@ proto.fs_tree_manager.MerkleNode.serializeBinaryToWriter = function(message, wri
       f
     );
   }
-  f = message.getChildrenUuidsList();
-  if (f.length > 0) {
-    writer.writeRepeatedString(
-      3,
-      f
-    );
+  f = message.getChildrenUuidsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeBool);
   }
   f = message.getParentUuid();
   if (f.length > 0) {
@@ -1074,40 +1066,25 @@ proto.fs_tree_manager.MerkleNode.prototype.setMerkleHash = function(value) {
 
 
 /**
- * repeated string children_uuids = 3;
- * @return {!Array<string>}
+ * map<string, bool> children_uuids = 3;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,boolean>}
  */
-proto.fs_tree_manager.MerkleNode.prototype.getChildrenUuidsList = function() {
-  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 3));
+proto.fs_tree_manager.MerkleNode.prototype.getChildrenUuidsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,boolean>} */ (
+      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      null));
 };
 
 
 /**
- * @param {!Array<string>} value
+ * Clears values from the map. The map will be non-null.
  * @return {!proto.fs_tree_manager.MerkleNode} returns this
  */
-proto.fs_tree_manager.MerkleNode.prototype.setChildrenUuidsList = function(value) {
-  return jspb.Message.setField(this, 3, value || []);
-};
-
-
-/**
- * @param {string} value
- * @param {number=} opt_index
- * @return {!proto.fs_tree_manager.MerkleNode} returns this
- */
-proto.fs_tree_manager.MerkleNode.prototype.addChildrenUuids = function(value, opt_index) {
-  return jspb.Message.addToRepeatedField(this, 3, value, opt_index);
-};
-
-
-/**
- * Clears the list making it empty but non-null.
- * @return {!proto.fs_tree_manager.MerkleNode} returns this
- */
-proto.fs_tree_manager.MerkleNode.prototype.clearChildrenUuidsList = function() {
-  return this.setChildrenUuidsList([]);
-};
+proto.fs_tree_manager.MerkleNode.prototype.clearChildrenUuidsMap = function() {
+  this.getChildrenUuidsMap().clear();
+  return this;};
 
 
 /**

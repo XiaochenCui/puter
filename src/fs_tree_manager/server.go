@@ -365,19 +365,30 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 	descendants := make(map[string]bool)
 	allDescendants(uid, tree.Nodes, descendants)
 
+	printTree(tree)
+
 	// Remove the node from its parent's children list
+	removedFromParent := false
 	if targetNode.ParentUuid != "" {
 		if parentNode, parentExists := tree.Nodes[targetNode.ParentUuid]; parentExists {
 			for i, childUUID := range parentNode.ChildrenUuids {
 				if childUUID == uid {
 					parentNode.ChildrenUuids = append(parentNode.ChildrenUuids[:i], parentNode.ChildrenUuids[i+1:]...)
+					removedFromParent = true
+					log.Printf("[user %d] child list: %v", userID, parentNode.ChildrenUuids)
 					break
 				}
 			}
 		}
 	}
+	if !removedFromParent {
+		log.Panicf("[user %d] parent not found: %s", userID, targetNode.ParentUuid)
+	}
+
+	printTree(tree)
 
 	// Remove all descendants from the tree
+	log.Printf("removing descendants [%d]: %v", len(descendants), descendants)
 	for descendantUUID := range descendants {
 		delete(tree.Nodes, descendantUUID)
 	}
@@ -391,7 +402,12 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 	}
 
 	if debug {
-		parentPath := targetNode.FsEntry.Metadata.AsMap()["path"].(string)
+		parent, parentExists := tree.Nodes[targetNode.ParentUuid]
+		if !parentExists {
+			log.Panicf("[user %d] parent not found: %s", userID, targetNode.ParentUuid)
+		}
+		parentPath := parent.FsEntry.Metadata.AsMap()["path"].(string)
+
 		parentUUID := targetNode.ParentUuid
 		log.Printf("[user %d] removed fs entry, (path: %s, uuid: %s), (parent_path: %s, parent_uuid: %s)", userID, targetNode.FsEntry.Metadata.AsMap()["path"], uid, parentPath, parentUUID)
 		integrityCheck()
@@ -723,11 +739,143 @@ func integrityCheck() {
 			for _, childUUID := range node.ChildrenUuids {
 				// check: child uuid is valid
 				if _, exists := tree.Nodes[childUUID]; !exists {
+					printTree(tree)
 					log.Panicf("[user %d] child uuid not found: %s", userID, childUUID)
 				}
 			}
 		}
 	}
+}
+
+var ignoreDirs = []string{
+	"/admin/api_test",
+	"/admin/Trash",
+}
+
+// printTree prints the tree in a human-readable format, from the root to the leaves
+func printTree(tree *pb.MerkleTree) {
+	if tree == nil || tree.RootUuid == "" {
+		fmt.Println("(empty tree)")
+		return
+	}
+
+	rootNode, exists := tree.Nodes[tree.RootUuid]
+	if !exists {
+		fmt.Printf("(root node not found: %s)\n", tree.RootUuid)
+		return
+	}
+
+	// Print tree header
+	fmt.Printf("Merkle Tree (Root: %s)\n", tree.RootUuid)
+	fmt.Println("├── " + getNodeDisplay(rootNode))
+
+	// Print children recursively
+	printNodeChildren(tree, rootNode, "│   ", "")
+}
+
+// printNodeChildren recursively prints children of a node
+func printNodeChildren(tree *pb.MerkleTree, node *pb.MerkleNode, prefix, lastPrefix string) {
+	children := node.ChildrenUuids
+	if len(children) == 0 {
+		return
+	}
+
+	// Sort children by path for consistent display
+	sortedChildren := make([]string, 0, len(children))
+	for _, childUUID := range children {
+		sortedChildren = append(sortedChildren, childUUID)
+	}
+
+	// Sort by path for better readability
+	sort.Slice(sortedChildren, func(i, j int) bool {
+		childI, existsI := tree.Nodes[sortedChildren[i]]
+		childJ, existsJ := tree.Nodes[sortedChildren[j]]
+		if !existsI || !existsJ {
+			return sortedChildren[i] < sortedChildren[j]
+		}
+
+		pathI := getPath(childI)
+		pathJ := getPath(childJ)
+		return pathI < pathJ
+	})
+
+	for i, childUUID := range sortedChildren {
+		childNode, exists := tree.Nodes[childUUID]
+		if !exists {
+			fmt.Printf("%s├── [MISSING NODE: %s]\n", prefix, childUUID)
+			continue
+		}
+
+		// Check if this child should be ignored
+		childPath := getPath(childNode)
+		shouldIgnore := false
+		for _, ignoreDir := range ignoreDirs {
+			if childPath == ignoreDir {
+				shouldIgnore = true
+				break
+			}
+		}
+
+		if shouldIgnore {
+			continue
+		}
+
+		isLast := i == len(sortedChildren)-1
+		var currentPrefix, nextPrefix string
+
+		if isLast {
+			currentPrefix = "└── "
+			nextPrefix = "    "
+		} else {
+			currentPrefix = "├── "
+			nextPrefix = "│   "
+		}
+
+		fmt.Printf("%s%s%s\n", prefix, currentPrefix, getNodeDisplay(childNode))
+
+		// Recursively print children
+		printNodeChildren(tree, childNode, prefix+nextPrefix, prefix+currentPrefix)
+	}
+}
+
+// getNodeDisplay returns a formatted string for displaying a node
+func getNodeDisplay(node *pb.MerkleNode) string {
+	path := getPath(node)
+	name := getName(node)
+
+	// Truncate UUID to first 8 characters for readability
+	shortUUID := node.Uuid
+	if len(shortUUID) > 8 {
+		shortUUID = shortUUID[:8]
+	}
+
+	return fmt.Sprintf("%s [%s] (uuid: %s)", path, name, shortUUID)
+}
+
+// getPath extracts the path from node metadata
+func getPath(node *pb.MerkleNode) string {
+	if node.FsEntry == nil || node.FsEntry.Metadata == nil {
+		return "[no path]"
+	}
+
+	metadata := node.FsEntry.Metadata.AsMap()
+	if path, ok := metadata["path"].(string); ok {
+		return path
+	}
+	return "[no path]"
+}
+
+// getName extracts the name from node metadata
+func getName(node *pb.MerkleNode) string {
+	if node.FsEntry == nil || node.FsEntry.Metadata == nil {
+		return "[no name]"
+	}
+
+	metadata := node.FsEntry.Metadata.AsMap()
+	if name, ok := metadata["name"].(string); ok {
+		return name
+	}
+	return "[no name]"
 }
 
 // purgeOldTrees removes trees that haven't been read in 1 minute or synced in 5 minutes

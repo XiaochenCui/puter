@@ -380,7 +380,10 @@ class ReplicaManager {
         }
 
         if ( this.socket ) {
-            this.socket.disconnect();
+            // shouldn't disconnect since this socket is also used by the
+            // other components
+            //
+            // this.socket.disconnect();
         }
 
         this.available = false;

@@ -21,7 +21,24 @@ const {
 const { Struct } = require('google-protobuf/google/protobuf/struct_pb.js');
 
 // Create gRPC client
-const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.createInsecure());
+const client = new FSTreeManagerClient('localhost:50052', grpc.credentials.createInsecure(), {
+    // Reconnect backoff (defaults can be slow: ~20s→120s)
+    //
+    // ref:
+    // - https://grpc.github.io/grpc/core/group__grpc__arg__keys.html
+    // - https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md
+    'grpc.initial_reconnect_backoff_ms': 500,
+    'grpc.min_reconnect_backoff_ms': 500,
+    'grpc.max_reconnect_backoff_ms': 5000,
+
+    // // Keepalive so dead TCPs are detected quickly
+    // 'grpc.keepalive_time_ms': 15000,           // send PING every 15s
+    // 'grpc.keepalive_timeout_ms': 5000,         // wait 5s for PING ack
+    // 'grpc.keepalive_permit_without_calls': 1,  // allow pings when idle
+
+    // // (Optional) be polite about PING cadence
+    // 'grpc.http2.min_time_between_pings_ms': 10000,
+});
 
 /**
  * Sends a new filesystem entry to the gRPC service
