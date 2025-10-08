@@ -25,8 +25,6 @@
 module.exports = {
     event: 'replica/pull_diff',
     handler: async (socket, data) => {
-        console.log(`replica/pull_diff: ${JSON.stringify(data)}`);
-
         // Import gRPC client and protobuf classes from common
         const {
             client,
@@ -54,6 +52,7 @@ module.exports = {
             client.pullDiff(requestMsg, (err, resp) => {
                 if ( err ) {
                     console.error('PullDiff error:', err);
+                    // TODO (xiaochen): what should we do when pull diff fails?
                     return socket.emit('replica/pull_diff/error', {
                         success: false,
                         error: { message: 'Failed to pull diff', details: err.message },
