@@ -34,13 +34,17 @@ type (
 	// Config represents the application configuration
 	Config struct {
 		Database struct {
-			Driver   string `yaml:"driver"`
-			Path     string `yaml:"path"`
-			Host     string `yaml:"db_host"`
-			Port     int    `yaml:"db_port"`
-			User     string `yaml:"db_user"`
-			Password string `yaml:"db_password"`
-			Database string `yaml:"db_database"`
+			Driver  string `yaml:"driver"`
+			SQLite3 struct {
+				Path string `yaml:"path"`
+			} `yaml:"sqlite3"`
+			MySQL struct {
+				Host     string `yaml:"db_host"`
+				Port     int    `yaml:"db_port"`
+				User     string `yaml:"db_user"`
+				Password string `yaml:"db_password"`
+				Database string `yaml:"db_database"`
+			} `yaml:"mysql"`
 		} `yaml:"database"`
 		Server struct {
 			Port int `yaml:"port"`
@@ -634,18 +638,27 @@ func runServer(configPath string) error {
 	var dbErr error
 
 	if config.Database.Driver == "mysql" {
+		// Validate MySQL configuration
+		if config.Database.MySQL.Host == "" || config.Database.MySQL.User == "" ||
+			config.Database.MySQL.Database == "" || config.Database.MySQL.Port == 0 {
+			return fmt.Errorf("MySQL configuration is incomplete: host, user, database, and port are required")
+		}
+
 		// Build MySQL connection string
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-			config.Database.User,
-			config.Database.Password,
-			config.Database.Host,
-			config.Database.Port,
-			config.Database.Database,
+			config.Database.MySQL.User,
+			config.Database.MySQL.Password,
+			config.Database.MySQL.Host,
+			config.Database.MySQL.Port,
+			config.Database.MySQL.Database,
 		)
 		db, dbErr = sql.Open("mysql", dsn)
 	} else {
 		// Default to SQLite
-		db, dbErr = sql.Open(config.Database.Driver, config.Database.Path)
+		if config.Database.SQLite3.Path == "" {
+			return fmt.Errorf("SQLite3 configuration is incomplete: path is required")
+		}
+		db, dbErr = sql.Open(config.Database.Driver, config.Database.SQLite3.Path)
 	}
 
 	if dbErr != nil {
