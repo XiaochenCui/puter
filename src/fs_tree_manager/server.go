@@ -64,7 +64,7 @@ var (
 	memoryThresholdBytes int64 = 2 * 1024 * 1024 * 1024
 
 	// Make FS-Tree Manager unstable and laggy.
-	chaos = true
+	chaos = false
 
 	debug = false
 )
@@ -107,6 +107,7 @@ func getReadableTree(s *server, userID int64) (*merkle.Tree, error) {
 	globalTrees[userID] = lockedTree
 	globalTreesLock.Unlock()
 
+	lockedTree.RLock()
 	return lockedTree, nil
 }
 
@@ -387,12 +388,10 @@ func mayCrash() error {
 	} else if v < 30 {
 		time.Sleep(10 * time.Second)
 	} else if v < 60 {
-		return fmt.Errorf("error")
+		return fmt.Errorf("intentional error on chaos mode")
 	}
 	return nil
 }
-
-const tableName = "fsentries"
 
 // loadConfig loads configuration from the specified config file
 func loadConfig(configPath string) (*Config, error) {
