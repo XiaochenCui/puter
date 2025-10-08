@@ -10,7 +10,6 @@ import (
 	"net"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -146,29 +145,38 @@ func calculateMerkleHash(node *pb.MerkleNode, childrenHashes []string) string {
 	return hashStr
 }
 
-// calculateTreeMerkleHashes calculates MerkleHash for all nodes in the tree (bottom-up)
+// calculateTreeMerkleHashes calculates MerkleHash for all nodes in the tree using a bottom-up approach.
+// Leaf nodes are processed first, then their parents, ensuring all children have hashes before parents.
 func calculateTreeMerkleHashes(tree *pb.MerkleTree) {
+	// Track which nodes have been processed
+	processed := make(map[string]bool)
+
+	// First pass: calculate hashes for leaf nodes (nodes with no children)
 	for _, node := range tree.Nodes {
 		if len(node.ChildrenUuids) == 0 {
 			node.MerkleHash = calculateMerkleHash(node, []string{})
+			processed[node.Uuid] = true
 		}
 	}
 
-	processed := make(map[string]bool)
-
+	// Continue processing until all nodes are done
 	for {
-		allProcessed := true
+		progressMade := false
+
+		// Process nodes whose children are all processed
 		for _, node := range tree.Nodes {
 			if processed[node.Uuid] {
 				continue
 			}
 
-			allChildrenProcessed := true
+			// Check if all children have been processed
+			allChildrenReady := true
 			childrenHashes := make([]string, 0, len(node.ChildrenUuids))
-			for _, childID := range node.ChildrenUuids {
+
+			for childID := range node.ChildrenUuids {
 				if child, exists := tree.Nodes[childID]; exists {
 					if !processed[childID] {
-						allChildrenProcessed = false
+						allChildrenReady = false
 						break
 					}
 					if child.MerkleHash != "" {
@@ -177,15 +185,16 @@ func calculateTreeMerkleHashes(tree *pb.MerkleTree) {
 				}
 			}
 
-			if allChildrenProcessed {
+			// If all children are ready, calculate this node's hash
+			if allChildrenReady {
 				node.MerkleHash = calculateMerkleHash(node, childrenHashes)
 				processed[node.Uuid] = true
-			} else {
-				allProcessed = false
+				progressMade = true
 			}
 		}
 
-		if allProcessed {
+		// If no progress was made, we're done
+		if !progressMade {
 			break
 		}
 	}
@@ -203,7 +212,7 @@ func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
 		}
 
 		childrenHashes := make([]string, 0, len(currentNode.ChildrenUuids))
-		for _, childID := range currentNode.ChildrenUuids {
+		for childID := range currentNode.ChildrenUuids {
 			if child, exists := tree.Nodes[childID]; exists && child.MerkleHash != "" {
 				childrenHashes = append(childrenHashes, child.MerkleHash)
 			}
@@ -272,12 +281,12 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 		MerkleHash:    "",
 		ParentUuid:    parentUUID,
 		FsEntry:       fsEntry,
-		ChildrenUuids: []string{},
+		ChildrenUuids: make(map[string]bool),
 	}
 
 	tree.Nodes[uid] = newNode
 
-	parentNode.ChildrenUuids = append(parentNode.ChildrenUuids, uid)
+	parentNode.ChildrenUuids[uid] = true
 
 	newNode.MerkleHash = calculateMerkleHash(newNode, []string{})
 
@@ -365,19 +374,13 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 	descendants := make(map[string]bool)
 	allDescendants(uid, tree.Nodes, descendants)
 
-	printTree(tree)
-
-	// Remove the node from its parent's children list
+	// Remove the node from its parent's children map
 	removedFromParent := false
 	if targetNode.ParentUuid != "" {
 		if parentNode, parentExists := tree.Nodes[targetNode.ParentUuid]; parentExists {
-			for i, childUUID := range parentNode.ChildrenUuids {
-				if childUUID == uid {
-					parentNode.ChildrenUuids = append(parentNode.ChildrenUuids[:i], parentNode.ChildrenUuids[i+1:]...)
-					removedFromParent = true
-					log.Printf("[user %d] child list: %v", userID, parentNode.ChildrenUuids)
-					break
-				}
+			if _, exists := parentNode.ChildrenUuids[uid]; exists {
+				delete(parentNode.ChildrenUuids, uid)
+				removedFromParent = true
 			}
 		}
 	}
@@ -385,10 +388,7 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		log.Panicf("[user %d] parent not found: %s", userID, targetNode.ParentUuid)
 	}
 
-	printTree(tree)
-
 	// Remove all descendants from the tree
-	log.Printf("removing descendants [%d]: %v", len(descendants), descendants)
 	for descendantUUID := range descendants {
 		delete(tree.Nodes, descendantUUID)
 	}
@@ -410,6 +410,7 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 
 		parentUUID := targetNode.ParentUuid
 		log.Printf("[user %d] removed fs entry, (path: %s, uuid: %s), (parent_path: %s, parent_uuid: %s)", userID, targetNode.FsEntry.Metadata.AsMap()["path"], uid, parentPath, parentUUID)
+		log.Printf("[user %d] removed descendants [%d]: %v", userID, len(descendants), descendants)
 		integrityCheck()
 	}
 
@@ -422,7 +423,7 @@ func allDescendants(nodeUUID string, nodes map[string]*pb.MerkleNode, descendant
 		return
 	}
 
-	for _, childUUID := range node.ChildrenUuids {
+	for childUUID := range node.ChildrenUuids {
 		descendants[childUUID] = true
 		allDescendants(childUUID, nodes, descendants)
 	}
@@ -471,7 +472,7 @@ func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushReq
 		}
 
 		// Add all children.
-		for _, childUUID := range node.ChildrenUuids {
+		for childUUID := range node.ChildrenUuids {
 			if childNode, childExists := tree.Nodes[childUUID]; childExists {
 				childPushItem := &pb.PushRequestItem{
 					Uuid:       childNode.Uuid,
@@ -673,7 +674,10 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 
 	for parentUUID, childUUIDs := range parentChildMap {
 		if parent, exists := nodes[parentUUID]; exists {
-			parent.ChildrenUuids = childUUIDs
+			parent.ChildrenUuids = make(map[string]bool)
+			for _, childUUID := range childUUIDs {
+				parent.ChildrenUuids[childUUID] = true
+			}
 		}
 	}
 
@@ -724,7 +728,7 @@ func integrityCheck() {
 				}
 
 				// check: parent has self as a child
-				if !slices.Contains(parent.ChildrenUuids, node.Uuid) {
+				if !parent.ChildrenUuids[node.Uuid] {
 					log.Panicf("[user %d] parent has self as a child: %s", userID, node.Uuid)
 				}
 
@@ -736,7 +740,7 @@ func integrityCheck() {
 			}
 
 			// check with children
-			for _, childUUID := range node.ChildrenUuids {
+			for childUUID := range node.ChildrenUuids {
 				// check: child uuid is valid
 				if _, exists := tree.Nodes[childUUID]; !exists {
 					printTree(tree)
@@ -782,7 +786,7 @@ func printNodeChildren(tree *pb.MerkleTree, node *pb.MerkleNode, prefix, lastPre
 
 	// Sort children by path for consistent display
 	sortedChildren := make([]string, 0, len(children))
-	for _, childUUID := range children {
+	for childUUID := range children {
 		sortedChildren = append(sortedChildren, childUUID)
 	}
 

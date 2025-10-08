@@ -85,7 +85,7 @@ class FSTree {
 
             const childrenHashes = [];
             if ( currentNode.children_uuids ) {
-                for ( const childId of currentNode.children_uuids ) {
+                for ( const childId of Object.keys(currentNode.children_uuids) ) {
                     const childNode = this.nodes[childId];
                     if ( childNode && childNode.merkle_hash ) {
                         childrenHashes.push(childNode.merkle_hash);
@@ -118,7 +118,7 @@ class FSTree {
             }
 
             // Find child with matching name
-            const foundId = currentNode.children_uuids.find(childId => {
+            const foundId = Object.keys(currentNode.children_uuids).find(childId => {
                 const childNode = this.nodes[childId];
                 return childNode && childNode.fs_entry && childNode.fs_entry.name === part;
             });
@@ -172,7 +172,7 @@ class FSTree {
         }
 
         // Get children by their UUIDs
-        const childrenUuids = node.children_uuids || [];
+        const childrenUuids = Object.keys(node.children_uuids || {});
         return childrenUuids
             .map(childId => this.nodes[childId])
             .filter(childNode => childNode && childNode.fs_entry)
@@ -214,7 +214,7 @@ class FSTree {
             merkle_hash: '',
             parent_uuid: fs_entry.parent_uid,
             fs_entry: fs_entry,
-            children_uuids: [],
+            children_uuids: {},
         };
 
         this.nodes[newNode.uuid] = newNode;
@@ -229,9 +229,9 @@ class FSTree {
         }
 
         if ( !parentNode.children_uuids ) {
-            parentNode.children_uuids = [];
+            parentNode.children_uuids = {};
         }
-        parentNode.children_uuids.push(newNode.uuid);
+        parentNode.children_uuids[newNode.uuid] = true;
 
         await this.recalculateAncestorHashes(newNode.uuid);
     }
@@ -247,7 +247,7 @@ class FSTree {
         if ( node.parent_uuid ) {
             const parentNode = this.findNodeByUUID(node.parent_uuid);
             if ( parentNode ) {
-                parentNode.children_uuids = parentNode.children_uuids.filter(childId => childId !== uuid);
+                delete parentNode.children_uuids[uuid];
             } else {
                 throw new Error(`Parent directory not found: ${node.parent_uuid}`);
             }

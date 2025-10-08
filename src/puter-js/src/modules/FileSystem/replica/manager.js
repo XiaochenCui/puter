@@ -217,7 +217,7 @@ class ReplicaManager {
 
             // process children
             if ( pushItem.children ) {
-                const localChildren = node ? (node.children_uuids || []) : [];
+                const localChildren = node ? Object.keys(node.children_uuids || {}) : [];
                 const serverChildren = pushItem.children.map(child => child.uuid);
 
                 // fsentry removed from server, remove it in local as well
@@ -278,7 +278,7 @@ class ReplicaManager {
             merkle_hash: nodeData.merkle_hash,
             parent_uuid: nodeData.fs_entry.parent_uid,
             fs_entry: nodeData.fs_entry,
-            children_uuids: [],
+            children_uuids: {},
         };
 
         this.fs_tree.nodes[nodeData.uuid] = newNode;
@@ -288,9 +288,9 @@ class ReplicaManager {
             const parentNode = this.fs_tree.nodes[nodeData.fs_entry.parent_uid];
             if ( parentNode ) {
                 if ( !parentNode.children_uuids ) {
-                    parentNode.children_uuids = [];
+                    parentNode.children_uuids = {};
                 }
-                parentNode.children_uuids.push(nodeData.uuid);
+                parentNode.children_uuids[nodeData.uuid] = true;
             }
         }
     }
@@ -308,16 +308,13 @@ class ReplicaManager {
         if ( node.parent_uuid ) {
             const parentNode = this.fs_tree.nodes[node.parent_uuid];
             if ( parentNode && parentNode.children_uuids ) {
-                const index = parentNode.children_uuids.indexOf(nodeId);
-                if ( index > -1 ) {
-                    parentNode.children_uuids.splice(index, 1);
-                }
+                delete parentNode.children_uuids[nodeId];
             }
         }
 
         // Remove all children recursively
         if ( node.children_uuids ) {
-            for ( const childId of node.children_uuids ) {
+            for ( const childId of Object.keys(node.children_uuids) ) {
                 this.removeNodeAndDescendants(childId);
             }
         }

@@ -54,10 +54,17 @@ module.exports = {
             // Convert nodes map to plain JavaScript object
             const nodes = {};
             nodesMap.forEach((node, nodeUuid) => {
+                // Convert the map-based children_uuids to a JavaScript object
+                const childrenUuidsMap = node.getChildrenUuidsMap();
+                const childrenUuids = {};
+                childrenUuidsMap.forEach((value, key) => {
+                    childrenUuids[key] = value;
+                });
+
                 nodes[nodeUuid] = {
                     uuid: node.getUuid(),
                     merkle_hash: node.getMerkleHash(),
-                    children_uuids: node.getChildrenUuidsList(),
+                    children_uuids: childrenUuids,
                     parent_uuid: node.getParentUuid(),
                     fs_entry: node.getFsEntry() ? node.getFsEntry().getMetadata().toJavaScript() : {},
                 };
