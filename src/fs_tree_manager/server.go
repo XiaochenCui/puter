@@ -701,8 +701,7 @@ func main() {
 		},
 	}
 
-	rootCmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to the configuration file (required)")
-	rootCmd.MarkFlagRequired("config")
+	rootCmd.Flags().StringVarP(&configPath, "config", "c", "./config.yaml", "Path to the configuration file")
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Error: %v", err)
