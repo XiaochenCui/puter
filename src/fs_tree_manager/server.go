@@ -128,7 +128,7 @@ func getWritableTree(userID int64) (*merkle.Tree, error) {
 // FetchReplica implements the FSTreeManager service
 func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) (*pb.MerkleTree, error) {
 	if chaos {
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 	}
 
 	readableTree, err := getReadableTree(s, req.UserId)
