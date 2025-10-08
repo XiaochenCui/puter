@@ -75,8 +75,8 @@ message MerkleNode {
   FSEntry fs_entry = 5;
 }
 
-// The motivation of this design is elaborated in the RFC
-// (doc/RFCS/20250821_client_replica_file_system.md)
+// The motivation of the heap design instead of embedded trees is elaborated in
+// the RFC (doc/RFCS/20250821_client_replica_file_system.md)
 message MerkleTree {
   string root_uuid = 1;
 

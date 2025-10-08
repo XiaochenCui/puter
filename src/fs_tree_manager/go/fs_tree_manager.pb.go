@@ -302,8 +302,8 @@ func (x *MerkleNode) GetFsEntry() *FSEntry {
 	return nil
 }
 
-// The motivation of this design is elaborated in the RFC
-// (doc/RFCS/20250821_client_replica_file_system.md)
+// The motivation of the heap design instead of embedded trees is elaborated in
+// the RFC (doc/RFCS/20250821_client_replica_file_system.md)
 type MerkleTree struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	RootUuid string                 `protobuf:"bytes,1,opt,name=root_uuid,json=rootUuid,proto3" json:"root_uuid,omitempty"`
