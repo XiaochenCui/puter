@@ -358,8 +358,14 @@ func (x *MerkleTree) GetNodes() map[string]*MerkleNode {
 }
 
 type FSEntry struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metadata      *structpb.Struct       `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// TODO (xiaochen): Make it a static type step by step.
+	//
+	// A static type is more robust and less error-prone. For instance, a
+	// FSEntry has uuid field in database but uid is desired in the puter-js
+	// and GUI client. We can guarantee the presence of desired fields by
+	// using a static type.
+	Metadata      *structpb.Struct `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

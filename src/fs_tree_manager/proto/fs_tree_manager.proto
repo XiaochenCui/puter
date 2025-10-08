@@ -84,7 +84,15 @@ message MerkleTree {
   map<string, MerkleNode> nodes = 2;
 }
 
-message FSEntry { google.protobuf.Struct metadata = 1; }
+message FSEntry {
+  // TODO (xiaochen): Make it a static type step by step.
+  //
+  // A static type is more robust and less error-prone. For instance, a
+  // FSEntry has uuid field in database but uid is desired in the puter-js
+  // and GUI client. We can guarantee the presence of desired fields by
+  // using a static type.
+  google.protobuf.Struct metadata = 1;
+}
 
 message PullRequest {
   int64 user_id = 1;
