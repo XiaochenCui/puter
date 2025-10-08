@@ -1,0 +1,6 @@
+database:
+  driver: "sqlite3"
+  path: "/var/puter/puter-database.sqlite"
+
+server:
+  port: ":50052"

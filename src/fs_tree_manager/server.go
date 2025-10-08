@@ -3,66 +3,67 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 	pb "github.com/puter/fs_tree_manager/go"
+	"github.com/puter/fs_tree_manager/merkle"
+	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"gopkg.in/yaml.v3"
 )
 
 type (
-	merkleTree struct {
-		tree *pb.MerkleTree
-		lock sync.RWMutex
-
-		// Last time the tree was synced from database.
-		lastSynced time.Time
-
-		// Last time the tree was read (by FetchReplica/PullDiff).
-		lastRead time.Time
-	}
-
 	server struct {
 		pb.UnimplementedFSTreeManagerServer
 		db *sql.DB
 	}
+
+	// Config represents the application configuration
+	Config struct {
+		Database struct {
+			Driver   string `yaml:"driver"`
+			Path     string `yaml:"path"`
+			Host     string `yaml:"db_host"`
+			Port     int    `yaml:"db_port"`
+			User     string `yaml:"db_user"`
+			Password string `yaml:"db_password"`
+			Database string `yaml:"db_database"`
+		} `yaml:"database"`
+		Server struct {
+			Port int `yaml:"port"`
+		} `yaml:"server"`
+	}
 )
 
 var (
-	// In-memory tree cache by user_id.
-	trees map[int64]*merkleTree
+	// key: user_id, value: user's full replica FS tree
+	globalTrees map[int64]*merkle.Tree
 
-	// The global lock.
-	treesLock sync.RWMutex
+	// This is only used to protect the integrity of the globalTrees map. Each
+	// tree's integrity is not its responsibility.
+	globalTreesLock sync.RWMutex
 
 	// Memory threshold in bytes (2GB)
 	memoryThresholdBytes int64 = 2 * 1024 * 1024 * 1024
 
 	// Make FS-Tree Manager unstable and laggy.
-	chaos = false
+	chaos = true
 
-	debug = true
+	debug = false
 )
-
-func newMerkleTree(tree *pb.MerkleTree) *merkleTree {
-	return &merkleTree{
-		tree:       tree,
-		lastSynced: time.Now(),
-	}
-}
 
 // checkMemoryUsage checks if the current memory usage exceeds the threshold
 func checkMemoryUsage() error {
@@ -76,20 +77,17 @@ func checkMemoryUsage() error {
 	return nil
 }
 
-// getMerkleTree atomically gets or creates a MerkleTree for a user
-// Returns a read-locked tree that must be unlocked by the caller
-func getMerkleTree(s *server, userID int64) (*merkleTree, error) {
-	treesLock.RLock()
-	lockedTree, exists := trees[userID]
-	treesLock.RUnlock()
+// Get a readable tree, initialize the tree from database if it doesn't exist.
+func getReadableTree(s *server, userID int64) (*merkle.Tree, error) {
+	globalTreesLock.RLock()
+	lockedTree, exists := globalTrees[userID]
+	globalTreesLock.RUnlock()
 
 	if exists {
-		lockedTree.lock.RLock()
+		lockedTree.RLock()
+		lockedTree.LastRead = time.Now()
 		return lockedTree, nil
 	}
-
-	treesLock.Lock()
-	defer treesLock.Unlock()
 
 	if err := checkMemoryUsage(); err != nil {
 		return nil, err
@@ -100,128 +98,26 @@ func getMerkleTree(s *server, userID int64) (*merkleTree, error) {
 		return nil, err
 	}
 
-	lockedTree = newMerkleTree(tree)
-	trees[userID] = lockedTree
+	lockedTree = merkle.NewTree(tree)
+	globalTreesLock.Lock()
+	globalTrees[userID] = lockedTree
+	globalTreesLock.Unlock()
 
-	lockedTree.lock.RLock()
 	return lockedTree, nil
 }
 
-// getMerkleTreeForWrite gets a MerkleTree for a user for write operations
-// Only operates on trees that exist in memory
-// Returns a write-locked tree that must be unlocked by the caller
-func getMerkleTreeForWrite(s *server, userID int64) (*merkleTree, error) {
-	treesLock.RLock()
-	lockedTree, exists := trees[userID]
-	treesLock.RUnlock()
+// Get a read-write tree.
+func getWritableTree(userID int64) (*merkle.Tree, error) {
+	globalTreesLock.RLock()
+	lockedTree, exists := globalTrees[userID]
+	globalTreesLock.RUnlock()
 
-	if !exists {
-		return nil, fmt.Errorf("tree for user %d does not exist in memory", userID)
+	if exists {
+		lockedTree.Lock()
+		return lockedTree, nil
 	}
 
-	lockedTree.lock.Lock()
-	return lockedTree, nil
-}
-
-// calculateMerkleHash calculates the MerkleHash for a node based on its attributes and children hashes
-func calculateMerkleHash(node *pb.MerkleNode, childrenHashes []string) string {
-	hasher := xxhash.New()
-
-	if node.FsEntry.Metadata != nil {
-		metadataBytes, err := json.Marshal(node.FsEntry.Metadata.AsMap())
-		if err == nil {
-			hasher.Write(metadataBytes)
-		}
-	}
-
-	sort.Strings(childrenHashes)
-
-	for _, childHash := range childrenHashes {
-		hasher.WriteString(childHash)
-	}
-
-	hash := hasher.Sum64()
-	hashStr := fmt.Sprintf("%d", hash)
-	return hashStr
-}
-
-// calculateTreeMerkleHashes calculates MerkleHash for all nodes in the tree using a bottom-up approach.
-// Leaf nodes are processed first, then their parents, ensuring all children have hashes before parents.
-func calculateTreeMerkleHashes(tree *pb.MerkleTree) {
-	// Track which nodes have been processed
-	processed := make(map[string]bool)
-
-	// First pass: calculate hashes for leaf nodes (nodes with no children)
-	for _, node := range tree.Nodes {
-		if len(node.ChildrenUuids) == 0 {
-			node.MerkleHash = calculateMerkleHash(node, []string{})
-			processed[node.Uuid] = true
-		}
-	}
-
-	// Continue processing until all nodes are done
-	for {
-		progressMade := false
-
-		// Process nodes whose children are all processed
-		for _, node := range tree.Nodes {
-			if processed[node.Uuid] {
-				continue
-			}
-
-			// Check if all children have been processed
-			allChildrenReady := true
-			childrenHashes := make([]string, 0, len(node.ChildrenUuids))
-
-			for childID := range node.ChildrenUuids {
-				if child, exists := tree.Nodes[childID]; exists {
-					if !processed[childID] {
-						allChildrenReady = false
-						break
-					}
-					if child.MerkleHash != "" {
-						childrenHashes = append(childrenHashes, child.MerkleHash)
-					}
-				}
-			}
-
-			// If all children are ready, calculate this node's hash
-			if allChildrenReady {
-				node.MerkleHash = calculateMerkleHash(node, childrenHashes)
-				processed[node.Uuid] = true
-				progressMade = true
-			}
-		}
-
-		// If no progress was made, we're done
-		if !progressMade {
-			break
-		}
-	}
-}
-
-// recalculateAncestorHashes recalculates Merkle hashes for all ancestors of a given node
-// Note: This function assumes the tree is already locked by the caller
-func recalculateAncestorHashes(tree *pb.MerkleTree, nodeID string) {
-	currentNodeID := nodeID
-
-	for currentNodeID != "" {
-		currentNode, exists := tree.Nodes[currentNodeID]
-		if !exists {
-			break
-		}
-
-		childrenHashes := make([]string, 0, len(currentNode.ChildrenUuids))
-		for childID := range currentNode.ChildrenUuids {
-			if child, exists := tree.Nodes[childID]; exists && child.MerkleHash != "" {
-				childrenHashes = append(childrenHashes, child.MerkleHash)
-			}
-		}
-
-		currentNode.MerkleHash = calculateMerkleHash(currentNode, childrenHashes)
-
-		currentNodeID = currentNode.ParentUuid
-	}
+	return nil, fmt.Errorf("tree for user %d does not exist in memory", userID)
 }
 
 // FetchReplica implements the FSTreeManager service
@@ -230,16 +126,71 @@ func (s *server) FetchReplica(ctx context.Context, req *pb.FetchReplicaRequest) 
 		time.Sleep(10 * time.Second)
 	}
 
-	lockedTree, err := getMerkleTree(s, req.UserId)
+	readableTree, err := getReadableTree(s, req.UserId)
 	if err != nil {
 		return nil, err
 	}
-	defer lockedTree.lock.RUnlock()
+	defer readableTree.RUnlock()
 
-	// Update lastRead timestamp
-	lockedTree.lastRead = time.Now()
+	return readableTree.GetTree(), nil
+}
 
-	return lockedTree.tree, nil
+func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
+	if chaos {
+		if err := mayCrash(); err != nil {
+			return nil, err
+		}
+	}
+
+	lockedTree, err := getReadableTree(s, req.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("[user %d] no cached tree found: %v", req.UserId, err)
+	}
+	defer lockedTree.RUnlock()
+
+	tree := lockedTree.GetTree()
+	response := &pb.PushRequest{
+		UserId:      req.UserId,
+		PushRequest: []*pb.PushRequestItem{},
+	}
+
+	for _, pullRequestItem := range req.PullRequest {
+		node, exists := tree.Nodes[pullRequestItem.Uuid]
+		if !exists {
+			log.Printf("[user %d] node not found: %s", req.UserId, pullRequestItem.Uuid)
+			continue
+		}
+
+		// If hashes match, no need to send this node.
+		if node.MerkleHash == pullRequestItem.MerkleHash {
+			continue
+		}
+
+		// Create push request item with node and its children.
+		pushItem := &pb.PushRequestItem{
+			Uuid:       node.Uuid,
+			MerkleHash: node.MerkleHash,
+			FsEntry:    node.FsEntry,
+			Children:   []*pb.PushRequestItem{},
+		}
+
+		// Add all children.
+		for childUUID := range node.ChildrenUuids {
+			if childNode, childExists := tree.Nodes[childUUID]; childExists {
+				childPushItem := &pb.PushRequestItem{
+					Uuid:       childNode.Uuid,
+					MerkleHash: childNode.MerkleHash,
+					FsEntry:    childNode.FsEntry,
+					Children:   []*pb.PushRequestItem{},
+				}
+				pushItem.Children = append(pushItem.Children, childPushItem)
+			}
+		}
+
+		response.PushRequest = append(response.PushRequest, pushItem)
+	}
+
+	return response, nil
 }
 
 // NewFSEntry implements the FSTreeManager service
@@ -259,18 +210,18 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 		return nil, fmt.Errorf("invalid metadata: missing uid")
 	}
 
-	lockedTree, err := getMerkleTreeForWrite(s, userID)
+	lockedTree, err := getWritableTree(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer lockedTree.lock.Unlock()
+	defer lockedTree.Unlock()
 
-	parentUUID, err := getParentUUID(metadataMap, lockedTree.tree.Nodes)
+	parentUUID, err := getParentUUID(metadataMap, lockedTree.GetTree().Nodes)
 	if err != nil {
 		return nil, err
 	}
 
-	tree := lockedTree.tree
+	tree := lockedTree.GetTree()
 	parentNode, exists := tree.Nodes[parentUUID]
 	if !exists {
 		return nil, fmt.Errorf("parent directory not found: %s", parentUUID)
@@ -288,15 +239,15 @@ func (s *server) NewFSEntry(ctx context.Context, req *pb.NewFSEntryRequest) (*em
 
 	parentNode.ChildrenUuids[uid] = true
 
-	newNode.MerkleHash = calculateMerkleHash(newNode, []string{})
+	newNode.MerkleHash = merkle.CalculateHash(newNode, []string{})
 
-	recalculateAncestorHashes(tree, uid)
+	merkle.RecalculateAncestorHashes(tree, uid)
 
 	if debug {
 		parentPath := parentNode.FsEntry.Metadata.AsMap()["path"].(string)
 		parentUUID = parentNode.Uuid
 		log.Printf("[user %d] new fs entry, (path: %s, uuid: %s), (parent_path: %s, parent_uuid: %s)", userID, metadataMap["path"], uid, parentPath, parentUUID)
-		integrityCheck()
+		merkle.IntegrityCheck(globalTrees)
 	}
 
 	return &emptypb.Empty{}, nil
@@ -358,13 +309,13 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		return nil, fmt.Errorf("invalid request: missing uuid")
 	}
 
-	lockedTree, err := getMerkleTreeForWrite(s, userID)
+	lockedTree, err := getWritableTree(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer lockedTree.lock.Unlock()
+	defer lockedTree.Unlock()
 
-	tree := lockedTree.tree
+	tree := lockedTree.GetTree()
 	targetNode, exists := tree.Nodes[uid]
 	if !exists {
 		return nil, fmt.Errorf("entry not found: %s", uid)
@@ -372,7 +323,7 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 
 	// Collect all descendants to remove
 	descendants := make(map[string]bool)
-	allDescendants(uid, tree.Nodes, descendants)
+	merkle.GetAllDescendants(uid, tree.Nodes, descendants)
 
 	// Remove the node from its parent's children map
 	removedFromParent := false
@@ -398,7 +349,7 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 
 	// Recalculate ancestor hashes
 	if targetNode.ParentUuid != "" {
-		recalculateAncestorHashes(tree, targetNode.ParentUuid)
+		merkle.RecalculateAncestorHashes(tree, targetNode.ParentUuid)
 	}
 
 	if debug {
@@ -411,89 +362,16 @@ func (s *server) RemoveFSEntry(ctx context.Context, req *pb.RemoveFSEntryRequest
 		parentUUID := targetNode.ParentUuid
 		log.Printf("[user %d] removed fs entry, (path: %s, uuid: %s), (parent_path: %s, parent_uuid: %s)", userID, targetNode.FsEntry.Metadata.AsMap()["path"], uid, parentPath, parentUUID)
 		log.Printf("[user %d] removed descendants [%d]: %v", userID, len(descendants), descendants)
-		integrityCheck()
+		merkle.IntegrityCheck(globalTrees)
 	}
 
 	return &emptypb.Empty{}, nil
 }
 
-func allDescendants(nodeUUID string, nodes map[string]*pb.MerkleNode, descendants map[string]bool) {
-	node, exists := nodes[nodeUUID]
-	if !exists {
-		return
-	}
-
-	for childUUID := range node.ChildrenUuids {
-		descendants[childUUID] = true
-		allDescendants(childUUID, nodes, descendants)
-	}
-}
-
-func (s *server) PullDiff(ctx context.Context, req *pb.PullRequest) (*pb.PushRequest, error) {
-	if chaos {
-		if err := mayCrash(); err != nil {
-			return nil, err
-		}
-	}
-
-	lockedTree, err := getMerkleTree(s, req.UserId)
-	if err != nil {
-		return nil, fmt.Errorf("[user %d] no cached tree found: %v", req.UserId, err)
-	}
-	defer lockedTree.lock.RUnlock()
-
-	// Update lastRead timestamp
-	lockedTree.lastRead = time.Now()
-
-	tree := lockedTree.tree
-	response := &pb.PushRequest{
-		UserId:      req.UserId,
-		PushRequest: []*pb.PushRequestItem{},
-	}
-
-	for _, pullRequestItem := range req.PullRequest {
-		node, exists := tree.Nodes[pullRequestItem.Uuid]
-		if !exists {
-			log.Printf("[user %d] node not found: %s", req.UserId, pullRequestItem.Uuid)
-			continue
-		}
-
-		// If hashes match, no need to send this node.
-		if node.MerkleHash == pullRequestItem.MerkleHash {
-			continue
-		}
-
-		// Create push request item with node and its children.
-		pushItem := &pb.PushRequestItem{
-			Uuid:       node.Uuid,
-			MerkleHash: node.MerkleHash,
-			FsEntry:    node.FsEntry,
-			Children:   []*pb.PushRequestItem{},
-		}
-
-		// Add all children.
-		for childUUID := range node.ChildrenUuids {
-			if childNode, childExists := tree.Nodes[childUUID]; childExists {
-				childPushItem := &pb.PushRequestItem{
-					Uuid:       childNode.Uuid,
-					MerkleHash: childNode.MerkleHash,
-					FsEntry:    childNode.FsEntry,
-					Children:   []*pb.PushRequestItem{},
-				}
-				pushItem.Children = append(pushItem.Children, childPushItem)
-			}
-		}
-
-		response.PushRequest = append(response.PushRequest, pushItem)
-	}
-
-	return response, nil
-}
-
 func (s *server) PurgeReplica(ctx context.Context, req *pb.PurgeReplicaRequest) (*emptypb.Empty, error) {
-	treesLock.Lock()
-	delete(trees, req.UserId)
-	treesLock.Unlock()
+	globalTreesLock.Lock()
+	delete(globalTrees, req.UserId)
+	globalTreesLock.Unlock()
 
 	return &emptypb.Empty{}, nil
 }
@@ -510,9 +388,23 @@ func mayCrash() error {
 	return nil
 }
 
-const sqliteDBPath = "/var/puter/puter-database.sqlite"
-
 const tableName = "fsentries"
+
+// loadConfig loads configuration from the specified config file
+func loadConfig(configPath string) (*Config, error) {
+	configData, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %v", err)
+	}
+
+	var config Config
+	err = yaml.Unmarshal(configData, &config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %v", err)
+	}
+
+	return &config, nil
+}
 
 // buildMetadata creates a comprehensive metadata structure matching the expected format
 func buildMetadata(uuid, name, path, parentUID string, userID int64, isDir bool, size sql.NullInt64,
@@ -690,248 +582,84 @@ func (s *server) buildUserFSTree(userID int64) (*pb.MerkleTree, error) {
 		Nodes:    nodes,
 	}
 
-	calculateTreeMerkleHashes(tree)
+	merkle.CalculateTreeHashes(tree)
 
 	return tree, nil
 }
 
-func integrityCheck() {
-	treesLock.RLock()
-	defer treesLock.RUnlock()
-
-	for userID, warppedTree := range trees {
-		tree := warppedTree.tree
-
-		root, exists := tree.Nodes[tree.RootUuid]
-		if !exists {
-			log.Panicf("[user %d] root uuid not found: %s", userID, tree.RootUuid)
-		}
-		rootPath := root.FsEntry.Metadata.AsMap()["path"].(string)
-
-		for UUID, node := range tree.Nodes {
-			// check: uuid is consistent
-			if UUID != node.Uuid {
-				log.Panicf("[user %d] uuid is inconsistent: %s != %s", userID, UUID, node.Uuid)
-			}
-
-			// check with parent
-			if node.Uuid != tree.RootUuid {
-				// check: all node should have a parent
-				if node.ParentUuid == "" {
-					log.Panicf("[user %d] parent uuid is empty: %s", userID, node.Uuid)
-				}
-
-				// check: parent uuid is valid
-				parent, exists := tree.Nodes[node.ParentUuid]
-				if !exists {
-					log.Panicf("[user %d] parent uuid not found: %s", userID, node.ParentUuid)
-				}
-
-				// check: parent has self as a child
-				if !parent.ChildrenUuids[node.Uuid] {
-					log.Panicf("[user %d] parent has self as a child: %s", userID, node.Uuid)
-				}
-
-				// check: parent path is a prefix
-				parentPath := parent.FsEntry.Metadata.AsMap()["path"].(string)
-				if !strings.HasPrefix(parentPath, rootPath) {
-					log.Panicf("[user %d] parent path is not a prefix: %s", userID, parentPath)
-				}
-			}
-
-			// check with children
-			for childUUID := range node.ChildrenUuids {
-				// check: child uuid is valid
-				if _, exists := tree.Nodes[childUUID]; !exists {
-					printTree(tree)
-					log.Panicf("[user %d] child uuid not found: %s", userID, childUUID)
-				}
-			}
-		}
-	}
-}
-
-var ignoreDirs = []string{
-	"/admin/api_test",
-	"/admin/Trash",
-}
-
-// printTree prints the tree in a human-readable format, from the root to the leaves
-func printTree(tree *pb.MerkleTree) {
-	if tree == nil || tree.RootUuid == "" {
-		fmt.Println("(empty tree)")
-		return
-	}
-
-	rootNode, exists := tree.Nodes[tree.RootUuid]
-	if !exists {
-		fmt.Printf("(root node not found: %s)\n", tree.RootUuid)
-		return
-	}
-
-	// Print tree header
-	fmt.Printf("Merkle Tree (Root: %s)\n", tree.RootUuid)
-	fmt.Println("├── " + getNodeDisplay(rootNode))
-
-	// Print children recursively
-	printNodeChildren(tree, rootNode, "│   ", "")
-}
-
-// printNodeChildren recursively prints children of a node
-func printNodeChildren(tree *pb.MerkleTree, node *pb.MerkleNode, prefix, lastPrefix string) {
-	children := node.ChildrenUuids
-	if len(children) == 0 {
-		return
-	}
-
-	// Sort children by path for consistent display
-	sortedChildren := make([]string, 0, len(children))
-	for childUUID := range children {
-		sortedChildren = append(sortedChildren, childUUID)
-	}
-
-	// Sort by path for better readability
-	sort.Slice(sortedChildren, func(i, j int) bool {
-		childI, existsI := tree.Nodes[sortedChildren[i]]
-		childJ, existsJ := tree.Nodes[sortedChildren[j]]
-		if !existsI || !existsJ {
-			return sortedChildren[i] < sortedChildren[j]
-		}
-
-		pathI := getPath(childI)
-		pathJ := getPath(childJ)
-		return pathI < pathJ
-	})
-
-	for i, childUUID := range sortedChildren {
-		childNode, exists := tree.Nodes[childUUID]
-		if !exists {
-			fmt.Printf("%s├── [MISSING NODE: %s]\n", prefix, childUUID)
-			continue
-		}
-
-		// Check if this child should be ignored
-		childPath := getPath(childNode)
-		shouldIgnore := false
-		for _, ignoreDir := range ignoreDirs {
-			if childPath == ignoreDir {
-				shouldIgnore = true
-				break
-			}
-		}
-
-		if shouldIgnore {
-			continue
-		}
-
-		isLast := i == len(sortedChildren)-1
-		var currentPrefix, nextPrefix string
-
-		if isLast {
-			currentPrefix = "└── "
-			nextPrefix = "    "
-		} else {
-			currentPrefix = "├── "
-			nextPrefix = "│   "
-		}
-
-		fmt.Printf("%s%s%s\n", prefix, currentPrefix, getNodeDisplay(childNode))
-
-		// Recursively print children
-		printNodeChildren(tree, childNode, prefix+nextPrefix, prefix+currentPrefix)
-	}
-}
-
-// getNodeDisplay returns a formatted string for displaying a node
-func getNodeDisplay(node *pb.MerkleNode) string {
-	path := getPath(node)
-	name := getName(node)
-
-	// Truncate UUID to first 8 characters for readability
-	shortUUID := node.Uuid
-	if len(shortUUID) > 8 {
-		shortUUID = shortUUID[:8]
-	}
-
-	return fmt.Sprintf("%s [%s] (uuid: %s)", path, name, shortUUID)
-}
-
-// getPath extracts the path from node metadata
-func getPath(node *pb.MerkleNode) string {
-	if node.FsEntry == nil || node.FsEntry.Metadata == nil {
-		return "[no path]"
-	}
-
-	metadata := node.FsEntry.Metadata.AsMap()
-	if path, ok := metadata["path"].(string); ok {
-		return path
-	}
-	return "[no path]"
-}
-
-// getName extracts the name from node metadata
-func getName(node *pb.MerkleNode) string {
-	if node.FsEntry == nil || node.FsEntry.Metadata == nil {
-		return "[no name]"
-	}
-
-	metadata := node.FsEntry.Metadata.AsMap()
-	if name, ok := metadata["name"].(string); ok {
-		return name
-	}
-	return "[no name]"
-}
-
 // purgeOldTrees removes trees that haven't been read in 1 minute or synced in 5 minutes
 func purgeOldTrees() {
-	treesLock.Lock()
-	defer treesLock.Unlock()
+	globalTreesLock.Lock()
+	defer globalTreesLock.Unlock()
 
 	readCutoff := time.Now().Add(-1 * time.Minute)
 	syncCutoff := time.Now().Add(-5 * time.Minute)
 	var toDelete []int64
 
-	for userID, lockedTree := range trees {
+	for userID, lockedTree := range globalTrees {
 		// Purge if either lastRead is older than 1 minute OR lastSynced is older than 5 minutes
-		if lockedTree.lastRead.Before(readCutoff) || lockedTree.lastSynced.Before(syncCutoff) {
+		if lockedTree.LastRead.Before(readCutoff) || lockedTree.LastSynced.Before(syncCutoff) {
 			toDelete = append(toDelete, userID)
 		}
 	}
 
 	for _, userID := range toDelete {
-		delete(trees, userID)
+		delete(globalTrees, userID)
 	}
-	log.Printf("purged %d old trees, %d trees remaining", len(toDelete), len(trees))
+	log.Printf("purged %d old trees, %d trees remaining", len(toDelete), len(globalTrees))
 }
 
-func main() {
+// runServer starts the gRPC server with the given configuration
+func runServer(configPath string) error {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	// Initialize global trees map
-	trees = make(map[int64]*merkleTree)
+	// Load configuration
+	config, err := loadConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %v", err)
+	}
 
-	// Start background job to purge old trees every 30 seconds
+	globalTrees = make(map[int64]*merkle.Tree)
+
+	// purge old trees periodically
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
 			purgeOldTrees()
 		}
 	}()
 
-	db, err := sql.Open("sqlite3", sqliteDBPath)
-	if err != nil {
-		log.Panicf("Failed to open database: %v", err)
+	var db *sql.DB
+	var dbErr error
+
+	if config.Database.Driver == "mysql" {
+		// Build MySQL connection string
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+			config.Database.User,
+			config.Database.Password,
+			config.Database.Host,
+			config.Database.Port,
+			config.Database.Database,
+		)
+		db, dbErr = sql.Open("mysql", dsn)
+	} else {
+		// Default to SQLite
+		db, dbErr = sql.Open(config.Database.Driver, config.Database.Path)
+	}
+
+	if dbErr != nil {
+		return fmt.Errorf("failed to open database: %v", dbErr)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Panicf("Failed to ping database: %v", err)
+		return fmt.Errorf("failed to ping database: %v", err)
 	}
 
-	lis, err := net.Listen("tcp", ":50052")
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", config.Server.Port))
 	if err != nil {
-		log.Panicf("Failed to listen: %v", err)
+		return fmt.Errorf("failed to listen: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
@@ -940,7 +668,31 @@ func main() {
 		db: db,
 	})
 
+	log.Printf("Starting FS Tree Manager server on :%d", config.Server.Port)
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Panicf("Failed to serve: %v", err)
+		return fmt.Errorf("failed to serve: %v", err)
+	}
+
+	return nil
+}
+
+func main() {
+	var configPath string
+
+	rootCmd := &cobra.Command{
+		Use:   "fs-tree-manager",
+		Short: "FS Tree Manager gRPC server",
+		Long:  `A gRPC server that manages filesystem trees using Merkle trees for efficient synchronization.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runServer(configPath)
+		},
+	}
+
+	rootCmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to the configuration file (required)")
+	rootCmd.MarkFlagRequired("config")
+
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Error: %v", err)
+		os.Exit(1)
 	}
 }
