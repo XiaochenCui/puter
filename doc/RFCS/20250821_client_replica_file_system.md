@@ -46,7 +46,11 @@ Currently, all of these operations are handled through the synchronous HTTP API 
 
 To tackle this issue, we propose maintaining a **full replica** of the filesystem rooted at the user’s home directory on the client (e.g., for user Tim, all filesystem nodes under `/Tim` are stored locally). This allows users to perform read-only operations on the client replica without waiting for a server response. Updates to the filesystem will be fetched from the server periodically.
 
-![](assets/20251006_105144_puter-client_replica.drawio.svg)
+![](assets/20251008_134412_puter-client_replica_overview.drawio.svg)
+
+
+
+![](assets/20251008_134726_puter-client_replica_network.drawio.svg)
 
 ## Implementation
 
@@ -186,25 +190,29 @@ NB: Put hooks in WSPushService may cause duplicate events, remove them in the fu
   - implementation: newFSEntry
 - [X] rename (code: `src/backend/src/routers/filesystem_api/rename.js`)
 - [X] move (`fs.move.*` event) (code: `src/backend/src/services/WSPushService.js`)
+  - TODO: move dir (with children) does not work
 - [X] delete file/dir (code: `src/backend/src/filesystem/hl_operations/hl_remove.js`)
 
 #### Hooks in Puter-JS
 
 - [X] mkdir
+
   - code: `src/puter-js/src/modules/FileSystem/operations/mkdir.js`
   - implementation: newFSEntry
 - [ ] new file
 - [ ] write file
 - [X] rename
+
   - code: `src/puter-js/src/modules/FileSystem/operations/rename.js`
   - implementation: dedicated rename api (since complete fsentry is not available)
 - [X] move
+
   - code: `src/puter-js/src/modules/FileSystem/operations/move.js`
   - implementation: removeFSEntry + newFSEntry
 - [X] delete file/dir
+
   - code: `src/puter-js/src/modules/FileSystem/operations/deleteFSEntry.js`
   - implementation: removeFSEntry + findNodeByPath (since only path is available)
-
 - [X] stat (code: `src/puter-js/src/modules/FileSystem/operations/stat.js`)
 - [X] readdir (code: `src/puter-js/src/modules/FileSystem/operations/readdir.js`)
 - [ ] search
@@ -325,6 +333,10 @@ The first stage is to have a single instance of the FS-Tree Manager. We will use
 - Only build FS tree when a request comes in.
 - Evict FS tree from memory when it's not used for 10 minutes. Use `last_access_time` for the eviction logic.
 - Set a hard limit of 4GB for the FS-Tree Manager, reject to create new FS tree when the memory usage reaches the limit.
+
+
+
+![](assets/20251008_134849_puter-client_replica_deployment1.drawio.svg)
 
 ### Second Stage - Partitioned FS-Tree Manager
 
