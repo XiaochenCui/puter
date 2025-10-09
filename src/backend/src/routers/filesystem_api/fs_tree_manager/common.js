@@ -12,6 +12,7 @@ const {
     FSEntry,
     NewFSEntryRequest,
     RemoveFSEntryRequest,
+    PurgeReplicaRequest,
     PullRequest,
     PullRequestItem,
     FetchReplicaRequest,
@@ -68,7 +69,7 @@ async function sendFSNew(userId, metadata) {
                 reject(new Error(`[xiaochen-error] Failed to send fs new entry: ${err.message}`));
                 return;
             }
-            console.log(`[xiaochen-log] sendFSNew: ${userId}, ${metadata.path}`);
+            // console.log(`[xiaochen-log] sendFSNew: ${userId}, ${metadata.path}`);
             resolve();
         });
     });
@@ -101,11 +102,31 @@ async function sendFSRemove(userId, uuid) {
                 reject(new Error(`[xiaochen-error] Failed to send fs remove entry: ${err.message}`));
                 return;
             }
-            console.log(`[xiaochen-log] sendFSRemove: ${userId}, ${uuid}`);
+            // console.log(`[xiaochen-log] sendFSRemove: ${userId}, ${uuid}`);
             resolve();
         });
     });
 }
+
+async function sendFSPurge(userId) {
+    return new Promise((resolve, reject) => {
+        if ( !userId ) {
+            reject(new Error('User ID is required'));
+            return;
+        }
+
+        const request = new PurgeReplicaRequest();
+        request.setUserId(userId);
+
+        client.purgeReplica(request, (err, _response) => {
+            if ( err ) {
+                reject(new Error(`[xiaochen-error] Failed to send fs purge replica: ${err.message}`));
+                return;
+            }
+            resolve();
+        });
+    });
+};
 
 /**
  * Recursively sanitize values so they can be accepted by google.protobuf.Struct.
@@ -205,6 +226,7 @@ module.exports = {
     // Helper functions
     sendFSNew,
     sendFSRemove,
+    sendFSPurge,
     buildFsEntry,
     sanitizeForStruct,
 };

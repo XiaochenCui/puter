@@ -18,8 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 const BaseService = require('./BaseService');
-const { sendFSNew, sendFSRemove } = require('../routers/filesystem_api/fs_tree_manager/common');
-class WSPushService  extends BaseService {
+const { sendFSNew, sendFSRemove, sendFSPurge } = require('../routers/filesystem_api/fs_tree_manager/common');
+class WSPushService extends BaseService {
     /**
     * Initializes the WSPushService by setting up event listeners for various file system operations.
     *
@@ -182,12 +182,26 @@ class WSPushService  extends BaseService {
         // ================== client-replica hook start ==================
         // "move" hook
         //
-        // NB: UUID comes from uuid/uid, need to handle both.
-        const uuid = response.uuid || response.uid;
-        for ( const user_id of user_id_list ) {
-            await sendFSRemove(user_id, uuid);
-            await sendFSNew(user_id, response);
-        }
+        // TODO: move this hook to a stable place.
+        (async () => {
+            try {
+                // NB: UUID comes from uuid/uid, need to handle both.
+                const uuid = response.uuid || response.uid;
+                for ( const user_id of user_id_list ) {
+                    // NB: type of response is unstable, need to handle both.
+                    const is_dir = response.entry?.is_dir || response.is_dir;
+
+                    if ( is_dir ) {
+                        await sendFSPurge(user_id);
+                    } else {
+                        await sendFSRemove(user_id, uuid);
+                        await sendFSNew(user_id, response);
+                    }
+                }
+            } catch( e ) {
+                console.error('client-replica failure: ', e);
+            }
+        })();
         // ================== client-replica hook end ====================
     }
 
@@ -263,19 +277,19 @@ class WSPushService  extends BaseService {
 
         const { socket_id } = metadata;
 
-        if ( ! socket_id ) {
+        if ( !socket_id ) {
             this.log.error('missing socket id', { metadata });
         }
 
         this.log.info('socket id: ' + socket_id);
 
         const svc_socketio = context.get('services').get('socketio');
-        if ( ! svc_socketio.has({ socket: socket_id }) ) {
+        if ( !svc_socketio.has({ socket: socket_id }) ) {
             return;
         }
 
         const ws_event_name = metadata.call_it_download
-            ? 'download.progress' : 'upload.progress' ;
+            ? 'download.progress' : 'upload.progress';
 
         upload_tracker.sub(delta => {
             this.log.info('emitting progress event');
@@ -302,7 +316,7 @@ class WSPushService  extends BaseService {
         };
 
         this.svc_event.emit('outer.gui.submission.done', {
-            user_id_list: [ user_id ],
+            user_id_list: [user_id],
             response,
         });
     }
@@ -324,7 +338,7 @@ class WSPushService  extends BaseService {
         const svc_socketio = this.services.get('socketio');
 
         for ( const user_id of user_id_list ) {
-            if ( ! svc_socketio.has({ room: user_id }) ) {
+            if ( !svc_socketio.has({ room: user_id }) ) {
                 continue;
             }
             svc_socketio.send({ room: user_id }, key, response);

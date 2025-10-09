@@ -22,8 +22,7 @@ const APIError = require('../../api/APIError.js');
 const { Context } = require('../../util/context.js');
 const FSNodeParam = require('../../api/filesystem/FSNodeParam.js');
 const { DB_WRITE } = require('../../services/database/consts.js');
-const { sendFSRemove, sendFSNew } = require('./fs_tree_manager/common');
-
+const { sendFSRemove, sendFSNew, sendFSPurge } = require('./fs_tree_manager/common');
 
 // -----------------------------------------------------------------------//
 // POST /rename
@@ -196,19 +195,24 @@ module.exports = eggspress('/rename', {
     // "rename" hook
     (async () => {
         try {
+            if ( fsentry.is_dir ) {
+                // Don't know who to mutate the fs-tree properly, just purge the replica.
+                await sendFSPurge(fsentry.user_id);
+            } else {
             // NB: user_id only exists in raw fsentry
-            const user_id = fsentry.user_id;
-            const uuid = fsentry.uuid;
-            await sendFSRemove(user_id, uuid);
+                const user_id = fsentry.user_id;
+                const uuid = fsentry.uuid;
+                await sendFSRemove(user_id, uuid);
 
-            const new_fsentry = await subject.getSafeEntry();
-            // for unknown reasons, the name and path are incorrect in the new_fsentry
-            new_fsentry.name = return_obj.name;
-            new_fsentry.path = return_obj.path;
+                const new_fsentry = await subject.getSafeEntry();
+                // for unknown reasons, the name and path are incorrect in the new_fsentry
+                new_fsentry.name = return_obj.name;
+                new_fsentry.path = return_obj.path;
 
-            await sendFSNew(user_id, new_fsentry);
+                await sendFSNew(user_id, new_fsentry);
+            }
         } catch( e ) {
-            console.error(e);
+            console.error('client-replica failure: ', e);
         }
     })();
     // ================== client-replica hook end ====================

@@ -34,6 +34,9 @@ service FSTreeManager {
 
   // For any fs operations that cannot be handled by New/Remove APIs, just purge
   // the replica.
+  //
+  // The final goal is to remove this RPC, after we can always mutate the
+  // fs-tree properly.
   rpc PurgeReplica(PurgeReplicaRequest) returns (google.protobuf.Empty);
 }
 
