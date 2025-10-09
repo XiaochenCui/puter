@@ -1,5 +1,5 @@
 - Feature Name: Client Replica Filesystem
-- Status: Draft
+- Status: In Progress
 - Date: 2025-08-21
 
 ## Table of Contents
