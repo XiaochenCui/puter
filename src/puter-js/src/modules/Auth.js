@@ -28,6 +28,8 @@ class Auth{
      * @returns {void}
      */
     setAuthToken (authToken) {
+        // console.log(`hi, this is puter.auth.setAuthToken, authToken: ${authToken}`);
+
         this.authToken = authToken;
     }
 
@@ -131,13 +133,20 @@ class Auth{
 
     async whoami () {
         try {
+            // console.log(`hi, this is puter.auth.whoami, authToken: ${this.authToken}, APIOrigin: ${this.APIOrigin}`)
+
             const resp = await fetch(this.APIOrigin + '/whoami', {
                 headers: {
                     Authorization: `Bearer ${this.authToken}`
                 }
             });
-            
-            const result = await resp.json();
+
+            const resp_json = await resp.json();
+
+            // console.log(`hi, this is puter.auth.whoami, resp_json: ${JSON.stringify(resp_json)}`)
+
+            // const result = await resp.json();
+            const result = resp_json;
             
             // Log the response
             if (globalThis.puter?.apiCallLogger?.isEnabled()) {

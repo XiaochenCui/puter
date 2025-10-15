@@ -458,12 +458,6 @@ class WebServerService extends BaseService {
         (() => {
             const onFinished = require('on-finished');
             app.use((req, res, next) => {
-                // console.log(`req.url: ${req.url}`);
-                // if (req.url.includes('replica')) {
-                //     console.log(`<xiaochen-debugger> req.url: ${req.url}, req.headers: ${JSON.stringify(req.headers)}`);
-                // }
-
-
                 /**
                 * Starts the web server and sets up routes, middleware, and web sockets.
                 *
