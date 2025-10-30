@@ -1,6 +1,26 @@
-import { test as baseTest, expect } from '@playwright/test';
+import { test as baseTest } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import yaml from 'yaml';
+
+// Load users from YAML file
+let users: Array<{username: string, password: string, email: string}> | null = null;
+
+function loadUsers(): Array<{username: string, password: string, email: string}> {
+    if (users === null) {
+        const usersPath = path.join(__dirname, '../config/users.yaml');
+        const usersData = fs.readFileSync(usersPath, 'utf8');
+        users = yaml.parse(usersData) as Array<{username: string, password: string, email: string}>;
+    }
+    return users;
+}
+
+async function acquireAccount(workerId: number): Promise<{username: string, password: string, email: string}> {
+    const userList = loadUsers();
+    // Use workerId to select a unique user for each worker
+    const userIndex = workerId % userList.length;
+    return userList[userIndex];
+}
 
 export * from '@playwright/test';
 export const test = baseTest.extend<{}, { workerStorageState: string }>({
@@ -22,26 +42,8 @@ export const test = baseTest.extend<{}, { workerStorageState: string }>({
         // Important: make sure we authenticate in a clean environment by unsetting storage state.
         const page = await browser.newPage({ storageState: undefined });
 
-        // Acquire a unique account, for example create a new one.
-        // Alternatively, you can have a list of precreated accounts for testing.
-        // Make sure that accounts are unique, so that multiple team members
-        // can run tests at the same time without interference.
-        const account = await acquireAccount(id);
-
-        // Perform authentication steps. Replace these actions with your own.
-        await page.goto('https://github.com/login');
-        await page.getByLabel('Username or email address').fill(account.username);
-        await page.getByLabel('Password').fill(account.password);
-        await page.getByRole('button', { name: 'Sign in' }).click();
-        // Wait until the page receives the cookies.
-        //
-        // Sometimes login flow sets cookies in the process of several redirects.
-        // Wait for the final URL to ensure that the cookies are actually set.
-        await page.waitForURL('https://github.com/');
-        // Alternatively, you can wait until the page reaches a state where all cookies are set.
-        await expect(page.getByRole('button', { name: 'View profile and more' })).toBeVisible();
-
-        // End of authentication steps.
+        // Authentication is now handled in individual test functions
+        // This fixture just provides the storage state management
 
         await page.context().storageState({ path: fileName });
         await page.close();

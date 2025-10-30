@@ -45,6 +45,9 @@ npx playwright install --with-deps
 
 # run tests
 npx playwright test
+
+# run tests in UI mode
+npx playwright test --ui
 ```
 
 ### Run Vitest (test puter-js API with node environment)
