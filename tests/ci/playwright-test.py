@@ -91,7 +91,16 @@ def run():
     # config server
     # =========================================================================
     cxc_toolkit.exec.run_command("npm install")
-    init_backend_config()
+    common.init_backend_config(
+        {
+            "services": {
+                "client-replica": {
+                    "enabled": True,
+                    "fs_tree_manager_url": "localhost:50052",
+                }
+            }
+        }
+    )
     admin_password = common.get_admin_password()
 
     # =========================================================================

@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -7,18 +8,6 @@ import yaml
 
 
 PUTER_ROOT = os.getcwd()
-
-
-def init_backend_config():
-    """
-    Initialize a default config in ./volatile/config/config.json.
-    """
-    # init config.json
-    server_process = cxc_toolkit.exec.run_background("npm start")
-
-    # wait 10s for the server to start
-    time.sleep(10)
-    server_process.terminate()
 
 
 # Possible reasons for failure:
@@ -92,3 +81,49 @@ def init_client_config(token: str):
     # write
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, indent=2)
+
+
+def update_nested_dict(d, updates):
+    """
+    Recursively update nested dictionary `d` with values from `updates`.
+    """
+    for k, v in updates.items():
+        if isinstance(v, dict) and isinstance(d.get(k), dict):
+            update_nested_dict(d[k], v)
+        else:
+            d[k] = v
+
+
+def init_backend_config(updates=None):
+    """
+    Initialize backend config and apply optional nested updates.
+    `updates` should be a dict specifying nested keys to modify.
+    Example:
+        updates = {
+            "services": {
+                "client-replica": {
+                    "enabled": True,
+                    "fs_tree_manager_url": "localhost:50052"
+                }
+            }
+        }
+    """
+    # init config.json
+    server_process = cxc_toolkit.exec.run_background("npm start")
+    time.sleep(10)
+    server_process.terminate()
+
+    example_config_path = f"{PUTER_ROOT}/volatile/config/config.json"
+    config_path = f"{PUTER_ROOT}/volatile/config/config.json"
+
+    # load
+    with open(example_config_path, "r") as f:
+        config = json.load(f)
+
+    # apply updates if provided
+    if updates:
+        update_nested_dict(config, updates)
+
+    # write back
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
