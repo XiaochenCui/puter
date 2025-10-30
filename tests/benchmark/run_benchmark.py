@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import time
+import yaml
 
 import cxc_toolkit
 
@@ -28,8 +29,25 @@ def run_benchmark():
     cxc_toolkit.exec.run_background(
         "npm start", work_dir=common.PUTER_ROOT, log_path="/tmp/backend.log"
     )
-    # wait 10s for the server to start
-    time.sleep(10)
+    # wait for the server to start
+    time.sleep(5)
+
+    # =========================================================================
+    # generate test users
+    # =========================================================================
+    USERS_FILE = "./tests/benchmark/abc/config/users.yaml"
+    users = []
+    for i in range(1, 101):
+        user_num = f"{i:04d}"
+        user = {
+            "username": f"bob_{user_num}",
+            "password": f"password_{user_num}",
+            "email": f"bob_{user_num}@puter.com",
+        }
+        users.append(user)
+
+    with open(USERS_FILE, "w") as f:
+        yaml.dump(users, f, default_flow_style=False)
 
 
 if __name__ == "__main__":

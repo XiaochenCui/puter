@@ -1,5 +1,6 @@
 ## Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Summary](#summary)
 - [How to use](#how-to-use)
   - [Initialize the Client Config](#initialize-the-client-config)
@@ -37,8 +38,12 @@ node ./tests/api-tester/apitest.js --unit --stop-on-failure
 
 ```bash
 cd ./tests/playwright
+
+# install dependencies
 npm install
 npx playwright install --with-deps
+
+# run tests
 npx playwright test
 ```
 
