@@ -41,7 +41,10 @@ def run_benchmark():
         user_num = f"{i:04d}"
         user = {
             "username": f"bob_{user_num}",
-            "password": f"password_{user_num}",
+            # password requirements:
+            # "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+            # https://github.com/HeyPuter/puter/blob/831d9017de9e562b8dc7de843cda85c601d49b34/src/gui/src/i18n/translations/en.js#L208
+            "password": f"Password_{user_num}",
             "email": f"bob_{user_num}@puter.com",
         }
         users.append(user)

@@ -45,6 +45,9 @@ npx playwright install --with-deps
 
 # run tests
 npx playwright test
+
+# run tests with specific number of workers
+npx playwright test --workers 4
 ```
 
 ### Run Vitest (test puter-js API with node environment)
