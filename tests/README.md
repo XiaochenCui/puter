@@ -48,6 +48,9 @@ npx playwright test
 
 # run tests with specific number of workers
 npx playwright test --workers 4
+
+# run tests in UI mode, a display system (e.g. XServer) is required
+npx playwright test --ui
 ```
 
 ### Run Vitest (test puter-js API with node environment)
