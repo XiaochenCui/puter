@@ -2,6 +2,7 @@ import { test as baseTest } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
+import { printLogs } from './common';
 
 // Load users from YAML file
 let users: Array<{ username: string, password: string, email: string }> | null = null;
@@ -72,6 +73,8 @@ export const fixture_2 = baseTest.extend<{}, { workerStorageState: string }>({
 
         const page = await context.newPage();
 
+        await printLogs(page);
+
         // Get a unique account for this test
         const account = await acquireAccount(0); // Using 0 as default worker ID for this test
 
@@ -80,6 +83,7 @@ export const fixture_2 = baseTest.extend<{}, { workerStorageState: string }>({
         await page.close();
 
         const newPage = await context.newPage();
+        await printLogs(newPage);
 
         await newPage.goto('http://puter.localhost:4100/');
 
@@ -110,6 +114,30 @@ export const fixture_2 = baseTest.extend<{}, { workerStorageState: string }>({
         await signupButton.click();
 
         console.log(`successfully registered as ${account.username} (${account.email})`);
+
+        const localStorageData = await newPage.evaluate(() => {
+            const data: Record<string, string> = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key) data[key] = localStorage.getItem(key) || '';
+            }
+            return data;
+        });
+
+        console.log(`localStorageData 1: ${JSON.stringify(localStorageData)}`);
+
+        // sleep for 5 seconds
+        await newPage.waitForTimeout(5000);
+
+        const localStorageData2 = await newPage.evaluate(() => {
+            const data: Record<string, string> = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key) data[key] = localStorage.getItem(key) || '';
+            }
+            return data;
+        });
+        console.log(`localStorageData 2: ${JSON.stringify(localStorageData2)}`);
 
         await newPage.context().storageState({ path: fileName });
         await newPage.close();

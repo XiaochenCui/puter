@@ -85,7 +85,7 @@ fixture_1('register', async ({ page }) => {
   console.log(`successfully registered as ${account.username} (${account.email})`);
 });
 
-fixture_2('whoami', async ({ page }) => {
+fixture_2('whoami', async ({ page, workerStorageState }) => {
   await bootstrap(page);
 
   const result = await page.evaluate(async () => {
