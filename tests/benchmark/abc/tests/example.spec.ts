@@ -4,6 +4,8 @@ import path from 'path';
 import yaml from 'yaml';
 import { testConfig } from '../config/test-config';
 import { fixture_1, fixture_2 } from './auth';
+import { getLocalStorage } from './common';
+import { register } from 'module';
 
 // Load users from YAML file
 let users: Array<{ username: string, password: string, email: string }> | null = null;
@@ -40,14 +42,20 @@ async function bootstrap(page: Page) {
   // }, { api_url: testConfig.api_url, auth_token: testConfig.auth_token });
 }
 
+fixture_1('register-2', async ({ page }) => {
+  await register(page.context, 0);
+});
+
 fixture_1('register', async ({ page }) => {
-  return;
+  // return;
 
   // Get a unique account for this test
   const account = await acquireAccount(0); // Using 0 as default worker ID for this test
 
   // Perform authentication steps for Puter
   await page.goto('http://puter.localhost:4100/');
+
+  console.log(`localStorage 1: ${JSON.stringify(await getLocalStorage(page))}`);
 
   // Close the current page
   await page.close();
@@ -62,6 +70,8 @@ fixture_1('register', async ({ page }) => {
   // sleep for 5 seconds
   await newPage.waitForTimeout(5000);
 
+  console.log(`localStorage 2: ${JSON.stringify(await getLocalStorage(newPage))}`);
+
   await newPage.click('button.signup-c2a-clickable');
 
   // Wait for the signup form to be visible
@@ -73,20 +83,31 @@ fixture_1('register', async ({ page }) => {
   const emailField = newPage.locator('input.email[type="email"]').first();
   await emailField.fill(account.email);
 
-  const passwordField = newPage.locator('input[type="password"], input[name="password"]').first();
+  const passwordField = newPage.locator('input[type="password"][name="password"]').first();
   await passwordField.fill(account.password);
 
-  const confirmPasswordField = newPage.locator('input.confirm-password[type="password"]').first();
+  const confirmPasswordField = newPage.locator('input[type="password"][name="confirm-password"]').first();
   await confirmPasswordField.fill(account.password);
+
+  await newPage.waitForTimeout(5000);
 
   const signupButton = newPage.locator('button.signup-btn').first();
   await signupButton.click();
 
+  console.log(`localStorage 3: ${JSON.stringify(await getLocalStorage(newPage))}`);
+
   console.log(`successfully registered as ${account.username} (${account.email})`);
+
+  // sleep for 5 seconds
+  await newPage.waitForTimeout(5000);
+
+  console.log(`localStorage 4: ${JSON.stringify(await getLocalStorage(newPage))}`);
 });
 
 fixture_2('whoami', async ({ page, workerStorageState }) => {
   await bootstrap(page);
+
+  // await page.goto('http://puter.localhost:4100/');
 
   const result = await page.evaluate(async () => {
     const puter = (window as any).puter;

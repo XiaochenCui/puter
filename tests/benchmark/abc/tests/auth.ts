@@ -1,8 +1,8 @@
-import { test as baseTest } from '@playwright/test';
+import { test as baseTest, Browser, BrowserContext } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
-import { printLogs } from './common';
+import { getLocalStorage, streamBrowserLogs } from './common';
 
 // Load users from YAML file
 let users: Array<{ username: string, password: string, email: string }> | null = null;
@@ -52,6 +52,7 @@ export const fixture_1 = baseTest.extend<{}, { workerStorageState: string }>({
     }, { scope: 'worker' }],
 });
 
+
 export const fixture_2 = baseTest.extend<{}, { workerStorageState: string }>({
     // Use the same storage state for all tests in this worker.
     storageState: ({ workerStorageState }, use) => use(workerStorageState),
@@ -62,29 +63,32 @@ export const fixture_2 = baseTest.extend<{}, { workerStorageState: string }>({
         const id = fixture_1.info().parallelIndex;
         const fileName = path.resolve(fixture_1.info().project.outputDir, `.auth/${id}.json`);
 
-        if (fs.existsSync(fileName)) {
-            // Reuse existing authentication state if any.
-            await use(fileName);
-            return;
-        }
+        // if (fs.existsSync(fileName)) {
+        //     // Reuse existing authentication state if any.
+        //     await use(fileName);
+        //     return;
+        // }
 
         // Important: make sure we authenticate in a clean environment by unsetting storage state.
         const context = await browser.newContext({ storageState: undefined });
 
         const page = await context.newPage();
 
-        await printLogs(page);
+        await streamBrowserLogs(page);
 
         // Get a unique account for this test
         const account = await acquireAccount(0); // Using 0 as default worker ID for this test
 
+        // Perform authentication steps for Puter
         await page.goto('http://puter.localhost:4100/');
 
+        console.log(`localStorage 1: ${JSON.stringify(await getLocalStorage(page))}`);
+
+        // Close the current page
         await page.close();
 
+        // Reopen a new page
         const newPage = await context.newPage();
-        await printLogs(newPage);
-
         await newPage.goto('http://puter.localhost:4100/');
 
         // Wait for and click the "Create Free Account" button
@@ -92,6 +96,8 @@ export const fixture_2 = baseTest.extend<{}, { workerStorageState: string }>({
 
         // sleep for 5 seconds
         await newPage.waitForTimeout(5000);
+
+        console.log(`localStorage 2: ${JSON.stringify(await getLocalStorage(newPage))}`);
 
         await newPage.click('button.signup-c2a-clickable');
 
@@ -104,43 +110,87 @@ export const fixture_2 = baseTest.extend<{}, { workerStorageState: string }>({
         const emailField = newPage.locator('input.email[type="email"]').first();
         await emailField.fill(account.email);
 
-        const passwordField = newPage.locator('input[type="password"], input[name="password"]').first();
+        const passwordField = newPage.locator('input[type="password"][name="password"]').first();
         await passwordField.fill(account.password);
 
-        const confirmPasswordField = newPage.locator('input.confirm-password[type="password"]').first();
+        const confirmPasswordField = newPage.locator('input[type="password"][name="confirm-password"]').first();
         await confirmPasswordField.fill(account.password);
+
+        await newPage.waitForTimeout(5000);
 
         const signupButton = newPage.locator('button.signup-btn').first();
         await signupButton.click();
 
+        console.log(`localStorage 3: ${JSON.stringify(await getLocalStorage(newPage))}`);
+
         console.log(`successfully registered as ${account.username} (${account.email})`);
 
-        const localStorageData = await newPage.evaluate(() => {
-            const data: Record<string, string> = {};
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key) data[key] = localStorage.getItem(key) || '';
-            }
-            return data;
-        });
-
-        console.log(`localStorageData 1: ${JSON.stringify(localStorageData)}`);
-
         // sleep for 5 seconds
-        await newPage.waitForTimeout(5000);
+        await newPage.waitForTimeout(10000);
 
-        const localStorageData2 = await newPage.evaluate(() => {
-            const data: Record<string, string> = {};
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key) data[key] = localStorage.getItem(key) || '';
-            }
-            return data;
-        });
-        console.log(`localStorageData 2: ${JSON.stringify(localStorageData2)}`);
+        console.log(`localStorage 4: ${JSON.stringify(await getLocalStorage(newPage))}`);
+
 
         await newPage.context().storageState({ path: fileName });
         await newPage.close();
         await use(fileName);
     }, { scope: 'worker' }],
 });
+
+async function register(context: BrowserContext,
+    user_id: number): Promise<void> {
+    const page = await context.newPage();
+
+    const account = await acquireAccount(user_id);
+
+    // Perform authentication steps for Puter
+    await page.goto('http://puter.localhost:4100/');
+
+    console.log(`localStorage 1: ${JSON.stringify(await getLocalStorage(page))}`);
+
+    // Close the current page
+    await page.close();
+
+    // Reopen a new page
+    const newPage = await context.newPage();
+    await newPage.goto('http://puter.localhost:4100/');
+
+    // Wait for and click the "Create Free Account" button
+    await newPage.waitForSelector('button.signup-c2a-clickable', { timeout: 10000 });
+
+    // sleep for 5 seconds
+    await newPage.waitForTimeout(5000);
+
+    console.log(`localStorage 2: ${JSON.stringify(await getLocalStorage(newPage))}`);
+
+    await newPage.click('button.signup-c2a-clickable');
+
+    // Wait for the signup form to be visible
+    await newPage.waitForSelector('input.username[type="text"]', { timeout: 10000 });
+
+    const usernameField = newPage.locator('input.username[type="text"]').first();
+    await usernameField.fill(account.username);
+
+    const emailField = newPage.locator('input.email[type="email"]').first();
+    await emailField.fill(account.email);
+
+    const passwordField = newPage.locator('input[type="password"][name="password"]').first();
+    await passwordField.fill(account.password);
+
+    const confirmPasswordField = newPage.locator('input[type="password"][name="confirm-password"]').first();
+    await confirmPasswordField.fill(account.password);
+
+    await newPage.waitForTimeout(5000);
+
+    const signupButton = newPage.locator('button.signup-btn').first();
+    await signupButton.click();
+
+    console.log(`localStorage 3: ${JSON.stringify(await getLocalStorage(newPage))}`);
+
+    console.log(`successfully registered as ${account.username} (${account.email})`);
+
+    // sleep for 5 seconds
+    await newPage.waitForTimeout(5000);
+
+    console.log(`localStorage 4: ${JSON.stringify(await getLocalStorage(newPage))}`);
+}
